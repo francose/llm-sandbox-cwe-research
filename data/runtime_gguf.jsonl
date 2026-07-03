@@ -1,0 +1,13 @@
+{"file": "00_baseline_valid.gguf", "result": "tool_bug", "note": "sanitizer fired in the example tool, not the loader"}
+{"file": "01_huge_kv_count.gguf", "result": "safe_reject", "note": "loader returned failure; example tool asserted"}
+{"file": "02_huge_tensor_count.gguf", "result": "safe_reject", "note": "loader returned failure; example tool asserted"}
+{"file": "03_huge_key_len.gguf", "result": "safe_reject", "note": "loader returned failure; example tool asserted"}
+{"file": "04_huge_array_len.gguf", "result": "safe_reject", "note": "loader returned failure; example tool asserted"}
+{"file": "05_huge_n_dims.gguf", "result": "safe_reject", "note": "loader returned failure; example tool asserted"}
+{"file": "06_dim_product_overflow.gguf", "result": "safe_reject", "note": "loader returned failure; example tool asserted"}
+{"file": "07_bad_value_type.gguf", "result": "tool_bug", "note": "sanitizer fired in the example tool, not the loader"}
+{"file": "08_bad_tensor_type.gguf", "result": "tool_bug", "note": "sanitizer fired in the example tool, not the loader"}
+{"file": "09_offset_past_eof.gguf", "result": "safe_reject", "note": "loader returned failure; example tool asserted"}
+{"file": "10_single_huge_dim.gguf", "result": "safe_reject", "note": "loader returned failure; example tool asserted"}
+{"file": "11_truncated.gguf", "result": "safe_reject", "note": "loader returned failure; example tool asserted"}
+{"file": "12_bad_version.gguf", "result": "safe_reject", "note": "loader returned failure; example tool asserted"}
