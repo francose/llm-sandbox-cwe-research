@@ -1,0 +1,34 @@
+# --- compiled probe/enforcer binaries (rebuilt from source) ---
+src/enforcer/supervisor
+src/abi/*.o
+src/abi/a.out
+*.o
+*.obj
+*.so
+*.a
+
+# transient probe binaries written to /tmp by the matrix runner are outside the
+# tree, but ignore any that land here too
+probe_*
+/tmp/probe_*
+
+# --- python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+
+# --- zig (if any probes are added later) ---
+zig-out/
+zig-cache/
+.zig-cache/
+
+# --- editor / OS noise ---
+*.swp
+*~
+.DS_Store
+
+# --- KEEP evidence: data/*.jsonl is reproducible output we want tracked ---
+# (nothing under data/ is ignored on purpose)

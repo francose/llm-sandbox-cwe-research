@@ -1,0 +1,21 @@
+{"ts": 1783090167.198039, "pid": 63453, "syscall": "execve", "path": "/bin/echo", "tool": "echo", "decision": "ALLOW"}
+{"ts": 1783090167.199034, "pid": 63454, "syscall": "execve", "path": "/usr/bin/id", "tool": "id", "decision": "ALLOW"}
+{"ts": 1783090167.200937, "pid": 63454, "syscall": "connect", "path": "/var/run/nscd/socket", "decision": "ALLOW"}
+{"ts": 1783090167.201033, "pid": 63454, "syscall": "connect", "path": "/var/run/nscd/socket", "decision": "ALLOW"}
+{"ts": 1783090167.201491, "pid": 63454, "syscall": "connect", "path": "/run/systemd/userdb/org.gnome.DisplayManager", "decision": "ALLOW"}
+{"ts": 1783090167.202124, "pid": 63454, "syscall": "connect", "path": "/run/systemd/userdb/io.systemd.DynamicUser", "decision": "ALLOW"}
+{"ts": 1783090167.205140, "pid": 63455, "syscall": "execve", "path": "/bin/cat", "tool": "cat", "decision": "ALLOW"}
+{"ts": 1783090167.206804, "pid": 63456, "syscall": "execve", "path": "/bin/bash", "tool": "bash", "decision": "DENY"}
+{"ts": 1783090167.207062, "pid": 63457, "syscall": "execve", "path": "/bin/sh", "tool": "sh", "decision": "DENY"}
+{"ts": 1783090167.207298, "pid": 63458, "syscall": "execve", "path": "/usr/bin/docker", "tool": "docker", "decision": "DENY"}
+{"ts": 1783090167.207491, "pid": 63459, "syscall": "execve", "path": "/usr/bin/curl", "tool": "curl", "decision": "DENY"}
+{"ts": 1783090167.207679, "pid": 63460, "syscall": "execve", "path": "/usr/bin/wget", "tool": "wget", "decision": "DENY"}
+{"ts": 1783090167.208316, "pid": 63461, "syscall": "execve", "path": "/bin/nc", "tool": "nc", "decision": "DENY"}
+{"ts": 1783090167.208518, "pid": 63462, "syscall": "execve", "path": "/usr/bin/python3", "tool": "python3", "decision": "DENY"}
+{"ts": 1783090167.208700, "pid": 63463, "syscall": "execve", "path": "/usr/bin/git", "tool": "git", "decision": "DENY"}
+{"ts": 1783090167.209878, "pid": 63464, "syscall": "execve", "path": "/usr/bin/unzip", "tool": "unzip", "decision": "DENY"}
+{"ts": 1783090167.210088, "pid": 63465, "syscall": "execve", "path": "/bin/busybox", "tool": "busybox", "decision": "DENY"}
+{"ts": 1783090167.210409, "pid": 63466, "syscall": "execve", "path": "/bin/chmod", "tool": "chmod", "decision": "DENY"}
+{"ts": 1783090167.210668, "pid": 63467, "syscall": "execve", "path": "/bin/mount", "tool": "mount", "decision": "DENY"}
+{"ts": 1783090167.210872, "pid": 63468, "syscall": "connect", "path": "/var/run/docker.sock", "decision": "DENY"}
+{"ts": 1783090167.211081, "pid": 63469, "syscall": "connect", "path": "/tmp/benign.sock", "decision": "ALLOW"}
