@@ -1,16 +1,16 @@
-/* oob_write.c  --  CWE-787, mapping WHICH defense catches WHICH overflow.
+/*
+ * oob_write.c -- CWE-787, showing which defense catches which kind of overflow.
  *
- * Three variants, each isolating one boundary so the flag matrix shows exactly
- * where each defense fires (and, more usefully, where it does not):
- *
- *   intra : overflow one field into an adjacent field of the SAME allocation.
- *           In-bounds of the malloc()'d object, so ASan's redzones never see it.
- *           -> silently corrupts under EVERY flagset, ASan included. (false confidence)
- *   heap  : write past the END of the allocation.
- *           -> ASan traps (heap-buffer-overflow); silent under all others.
- *   stack : memcpy a known-oversize into a fixed stack buffer.
- *           -> stack-protector / FORTIFY trap it (Debian gcc defaults them on);
- *              shows the stack is defended by default while the heap is not.
+ * Three cases, picked so the flag matrix shows where each defense fires and, more to
+ * the point, where it doesn't:
+ *   intra  overflow one field into the next field of the same allocation. It stays
+ *          inside the malloc'd object, so AddressSanitizer never sees it, and this one
+ *          gets through everything.
+ *   heap   write past the end of the allocation. AddressSanitizer catches this; the
+ *          others don't.
+ *   stack  memcpy too much into a fixed stack buffer. The stack canary and FORTIFY
+ *          catch this, which is the point: the stack is defended by default, the heap
+ *          is not.
  */
 #include <stdint.h>
 #include <stdio.h>

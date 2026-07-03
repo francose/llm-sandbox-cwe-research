@@ -1,21 +1,20 @@
 #!/usr/bin/env python3
-"""App-layer tool broker driven by a REAL local model (Ollama), for CWE discovery.
+"""App-layer tool broker, with the requests coming from a real local model (Ollama).
 
-This probes the application-layer half of the sandbox: the tool allow-list an agent
-framework enforces before a syscall ever happens. A live model (llama3.2:1b) is given a
-task and a single `run_command` tool; the broker then evaluates each request under three
-policies and records what would actually run. The point is not the model's behaviour (a 1b
-model proves no propensity) -- it is which CWE each *policy* exhibits:
+This looks at the application side of the sandbox: the tool allow-list a framework checks
+before any syscall happens. I give the model (llama3.2:1b) a task and one run_command tool,
+then check each request three ways and record what would actually run. The model is only
+there to produce realistic requests -- a 1b model says nothing about how often a model
+misbehaves. What I care about is the weakness in each policy:
 
-  name_only : approve the TOOL name ("run_command") and run whatever string it carries.
-              -> CWE-863 (incorrect authorization): the security decision ignores the payload.
-  basename  : parse the binary out of the command, check it against an allow-list.
-              -> better, but CWE-807 (reliance on untrusted input): shell/path/interpreter
-                 tricks defeat a string check, and an approved binary on a sensitive path
-                 (cat /etc/shadow) is still authorized (CWE-668).
-  kernel    : what the seccomp-notify enforcer (Finding 2) would decide on the real execve.
+  name_only  approve the tool name and run whatever string it carries. That ignores the
+             actual command (CWE-863).
+  basename   pull the binary out of the command and check it. Better, but a shell or an
+             interpreter or a /../ path defeats a string check (CWE-807), and an approved
+             binary reading a secret path is still approved (CWE-668).
+  kernel     what the seccomp enforcer from Finding 2 would decide on the real execve.
 
-Emits data/broker_events.jsonl.  Run: python3 src/agent/broker.py
+Writes data/broker_events.jsonl.  Run: python3 src/agent/broker.py
 """
 import json
 import os

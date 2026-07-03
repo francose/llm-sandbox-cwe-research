@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
-"""Build each C ABI/memory probe across a defense-flag matrix, run it, and classify
-whether the weakness was silently exploited, trapped by a defense, or prevented.
+"""Build each C probe under a set of compiler flags, run it, and record what happened:
+did the bug run silently, did a defense stop it, or was it refused up front.
 
-Emits data/abi_results.jsonl (one row per probe x variant x flagset) for the notebook.
-
-A "defense you'd assume is on" only counts if it actually fires here -- every cell is
-an empirically observed outcome on this host, not an assertion.
+Writes data/abi_results.jsonl, one row per probe/variant/flagset, for the notebook.
+Every cell is something I actually observed on this machine, not an assumption.
 """
 import json
 import os

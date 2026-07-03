@@ -1,18 +1,16 @@
-/* uaf_dealloc.c  --  CWE-416 (use-after-free) and freed-memory residency.
+/*
+ * uaf_dealloc.c -- CWE-416 (use-after-free) and what stays in freed memory.
  *
- * Answers two runtime-memory questions the study kept raising:
- *   (a) When an agent frees a buffer that held a secret, does the data leave
- *       memory, or stay resident and readable through the dangling pointer?
- *   (b) Does the default allocator catch the use-after-free?
+ * Two questions I kept coming back to:
+ *   - When we free a buffer that held a secret, does the secret actually leave memory,
+ *     or can we still read it through the old pointer?
+ *   - Does the normal allocator notice the use-after-free?
  *
- * Verified behaviour (glibc, this host):
- *   - free() does NOT scrub. The chunk goes to tcache; glibc writes ~16 bytes of
- *     metadata (next pointer + safe-linking key) over the HEAD of the freed
- *     chunk, but everything past that stays byte-for-byte resident. A secret
- *     longer than the metadata therefore survives "deallocation".
- *   - The default allocator does NOT detect the dangling read. Under ASan the
- *     same read TRAPS (heap-use-after-free) -- the runtime-layer defense, off in
- *     a normal build.
+ * What I saw with glibc on this machine: free() doesn't wipe anything. The chunk goes
+ * on tcache and glibc writes about 16 bytes of its own bookkeeping over the start of
+ * it, but everything after that is still there byte for byte, so a secret longer than
+ * 16 bytes survives the free. The normal allocator doesn't catch the stale read
+ * either; only AddressSanitizer does, and we don't ship that.
  */
 #include <stdio.h>
 #include <stdlib.h>

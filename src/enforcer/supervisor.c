@@ -1,29 +1,26 @@
-// supervisor.c — seccomp user-notification enforcer for LLM06.
+// supervisor.c -- a seccomp user-notification enforcer.
 //
-// Demonstrates the missing link from the findings: a tool allow-list enforced at the
-// kernel, not the agent framework. The supervisor installs a seccomp filter that turns
-// every execve/execveat AND every connect() into a USER_NOTIF, forks an "agent" that
-// attempts to run several binaries and to reach the engine socket, and for each attempt
-// decides ALLOW or DENY *before the action happens*.
+// The idea is simple: put the tool allow-list where it actually binds, in the kernel,
+// instead of in the agent framework where it is only advice. The supervisor installs a
+// seccomp filter that turns every execve/execveat and every connect() into a notification,
+// forks a child that tries to run various binaries and reach the engine socket, and decides
+// allow or deny for each one before it happens.
 //
-//   - execve/execveat: the target program path is read out of the agent's memory and
-//     checked against the approved tool list. Approved tools continue; the rest get
-//     EPERM and never execute. This covers the "run a different binary" acquisition path.
-//   - connect(): the sockaddr is read out of the agent's memory. A connect to the
-//     container-engine socket (docker.sock / podman.sock) is denied; other connects
-//     continue. This covers the DooD escalation, which is a socket write, not an execve,
-//     and which an exec-only monitor misses entirely (finding F5).
+//   - execve/execveat: read the program path out of the child's memory and check it against
+//     the approved list. Approved ones run; the rest get EPERM and never start. This is the
+//     "run a different binary" path.
+//   - connect(): read the address out of the child's memory. A connect to the engine socket
+//     (docker.sock / podman.sock) is denied; other connects go through. This is the
+//     Docker-out-of-Docker path, which is a socket call rather than an execve, so anything
+//     that only watches execve misses it.
 //
-// Together these are the two halves the conclusion calls for: the enforcer must watch
-// process execution AND socket access, or the agent walks around it through the daemon
-// socket. It still cannot run under privileged DinD, where seccomp is off by construction.
+// You need both, or the child just goes around the exec check through the socket. It still
+// cannot run under a privileged container, where seccomp is turned off.
 //
-// Build (inside a container with libseccomp-devel):
-//     gcc -O2 -o supervisor supervisor.c -lseccomp
-// Run (needs CAP_SYS_ADMIN for the notify listener, so --privileged):
-//     ./supervisor /out/events.jsonl
+// Build:  gcc -O2 -o supervisor supervisor.c -lseccomp
+// Run:    ./supervisor <events.jsonl>   (needs CAP_SYS_ADMIN; a rootless userns works: unshare -Ur)
 //
-// OWASP LLM06 (Excessive Agency). Author: sadik-erisen. 2026-06-11 (connect gating 2026-07-02).
+// Author: sadik-erisen.
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>

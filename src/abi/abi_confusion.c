@@ -1,21 +1,15 @@
-/* abi_confusion.c  --  CWE-843 (type confusion) + CWE-787 (OOB write) from ABI skew.
+/*
+ * abi_confusion.c -- CWE-843 and CWE-787 caused by an ABI mismatch.
  *
- * Realistic scenario: an agent (or a plugin build) compiles a consumer against a
- * STALE header. The library it links against has since grown the struct. No
- * shared header exists at build time, so the compiler cannot see the mismatch.
+ * The case I care about: someone builds against an old copy of a header while the
+ * library it links against has moved on and made the struct bigger. Nothing shares
+ * the header at build time, so the compiler never sees the two sides disagree.
  *
- * v1 (this TU, stale): kind@0, value@4 (32-bit), flags@8, tag@12  -> sizeof 16
- * v2 (abi_producer.c): kind@0, value@8 (64-bit), flags@16, tag@20 -> sizeof 24
- *
- * The consumer allocates 16 bytes (its sizeof) and hands the pointer to
- * producer_fill(), which writes as if it were 24 bytes. Two failures result at
- * once, with zero diagnostics on a normal build:
- *   1. type confusion  -- consumer reads `value` at offset 4, producer wrote it
- *                         at offset 8, so the consumer sees the wrong bytes.
- *   2. heap OOB write   -- producer's writes to flags@16 / tag@20 land PAST the
- *                         consumer's 16-byte allocation (CWE-787).
- *
- * Build it with and without -flto to see whether the toolchain closes the hole.
+ * Here the stale struct is 16 bytes and the library's is 24. This file allocates 16
+ * bytes and hands the pointer to producer_fill(), which writes 24 bytes worth. Two
+ * things go wrong at once and neither shows up on a normal build: it reads `value`
+ * from the wrong offset (type confusion), and it writes past the 16-byte allocation
+ * (a heap overflow). Try it with and without -flto to see if the toolchain notices.
  */
 #include <stdint.h>
 #include <stdio.h>

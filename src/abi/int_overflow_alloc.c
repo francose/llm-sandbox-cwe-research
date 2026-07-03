@@ -1,17 +1,15 @@
-/* int_overflow_alloc.c  --  CWE-190 (integer overflow) -> CWE-131/787 (undersized alloc).
+/*
+ * int_overflow_alloc.c -- CWE-190 leading to CWE-131/787.
  *
- * The single most common real-world heap-overflow root cause: sizing an
- * allocation with `malloc(count * size)` where the multiply overflows size_t,
- * yielding a tiny buffer that the caller then fills as if it were huge.
+ * This sits behind a lot of real heap overflows: you size an allocation as
+ * malloc(count * size), the multiply overflows size_t, and you get back a tiny buffer
+ * that the code then fills as if it were the full size.
  *
- * `count` is taken from argv so the value is genuinely runtime-controlled (an
- * attacker-influenced length is the realistic case). This probe does NOT write
- * gigabytes -- it demonstrates the defect safely:
- *   - malloc(count*size) returns a SMALL non-NULL buffer (the wrap), while
- *   - calloc(count,size) returns NULL because calloc checks the multiply.
- * A single controlled store just past the wrapped size confirms the buffer is
- * smaller than the caller intends. The malloc/calloc split is the finding: the
- * overflow-safe primitive exists, but `malloc(a*b)` -- what agents emit -- skips it.
+ * count comes from argv so it is a real runtime value (an attacker-controlled length
+ * is the usual case). I don't write gigabytes to show it -- I just show that
+ * malloc(count*size) hands back a small non-NULL buffer while calloc(count,size)
+ * returns NULL, because calloc checks the multiply. That difference is the finding:
+ * the safe way exists, the malloc(a*b) way skips it.
  */
 #include <stdint.h>
 #include <stdio.h>

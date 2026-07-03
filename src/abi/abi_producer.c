@@ -1,11 +1,11 @@
-/* abi_producer.c  --  the "library" side of an ABI boundary.
+/*
+ * abi_producer.c -- the library side of the ABI mismatch.
  *
- * This translation unit was updated to record layout v2: a 64-bit `value` and a
- * trailing `tag` were added. It is compiled and linked against a consumer that
- * still holds the v1 layout (see abi_confusion.c). Because C gives each TU its
- * own definition of `struct record`, the linker matches only the *symbol*
- * producer_fill -- never the *type*. The mismatch is therefore invisible at a
- * normal (non-LTO) build. That is the edge case this probe documents.
+ * This is the newer layout: a 64-bit `value` and a `tag` were added, so the struct is
+ * now 24 bytes. It gets linked against abi_confusion.c, which still uses the old
+ * 16-byte layout. C lets each file keep its own definition of `struct record`, so the
+ * linker only matches the name producer_fill, not the type -- which is why a normal
+ * build never warns.
  */
 #include <stdint.h>
 
