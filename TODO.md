@@ -22,22 +22,24 @@ controllable primitive, and report honestly where each one stops. (B) contains (
   `data/runtime_gguf.jsonl`). The only sanitizer hit was a null-deref in the `examples/gguf`
   demo tool, not the runtime — minor, worth a one-line upstream note.
 
-## In progress — coverage-guided fuzzing of the GGUF loader (chosen: "push GGUF harder")
+## Done — GGUF loader fuzzing (chosen: "push GGUF harder")
 
-- Harness written: `src/runtime/fuzz_gguf.cpp` (libFuzzer around `gguf_init_from_file`,
-  no_alloc=true so it fuzzes the parse path, not the allocator).
-- Instrumented static build of ggml (clang, `-fsanitize=address,undefined,fuzzer-no-link`)
-  is building in scratch at `…/scratchpad/llama.cpp/build-fuzz` (target: ggml-base/ggml/ggml-cpu).
-- **Next steps to resume:**
-  1. Confirm the static libs built (`build-fuzz/**/libggml*.a`).
-  2. Compile the harness: `clang++ -fsanitize=address,undefined,fuzzer -g -O1
-     -I llama.cpp/ggml/include src/runtime/fuzz_gguf.cpp <libggml*.a> -o gguf_fuzzer`.
-  3. Seed the corpus with the valid `seed.gguf` (written by `llama-gguf seed.gguf w`) plus
-     the malformed corpus, and run a bounded campaign (e.g. a few minutes, `-max_len=65536`).
-  4. Triage any crash: is the corruption real and in the loader (ggml/src/gguf.cpp)? If so,
-     do the (B) analysis — is the offset/value controllable, what's adjacent, how far it climbs.
-  5. If the loader stays clean (likely, it's OSS-fuzzed), that's a legitimate finding:
-     record the residual-risk map + keep the reusable harness, then pivot per below.
+Result (see Finding 6 in RESULTS.md, `data/runtime_fuzz_gguf.json`): the loader is
+memory-safe against an ASan/UBSan libFuzzer campaign. 855 crashing inputs collapse to two
+reachable-assertion DoS bugs (`gguf.cpp:143` empty key, `gguf.cpp:194` array type mismatch)
+and **zero memory corruption**. So (B) stops at DoS on this surface — no primitive to steer.
+Minimal reproducers in `data/gguf_crashes/` (empty-key is a 64-byte file). Harness
+`src/runtime/fuzz_gguf.cpp`, triage `src/runtime/triage.sh`.
+
+## In progress — push deeper / pick next surface
+
+- **Option 1 (deeper GGUF):** neuter the two known asserts (build ggml with `GGML_ASSERT`
+  as a no-op or `ok=false` return) so the fuzzer gets past the DoS walls, then re-fuzz to
+  see if any memory corruption hides behind them. This is what turns "0 found up to the
+  walls" into a real answer.
+- **Option 2 (pivot, recommended if GGUF stays clean):** point the same ASan+libFuzzer
+  method at the **tokenizer (LLM01)** — most reachable (just input), historically buggiest —
+  then chat-template/GBNF grammar, then multimodal/mmproj.
 
 ## Backlog (later)
 

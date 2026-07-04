@@ -161,6 +161,52 @@ network at the same time.
 Plan: digest-pin bypass, poisoned template, and presigned-URL replay, run against a local
 registry. These were the most realistic cases in the earlier work and I am reproducing them here.
 
+## Finding 6 — Fuzzing the model loader: a poisoned model file can crash the runtime, but not corrupt it
+
+**What I found:** a coverage-guided fuzzing campaign against llama.cpp's GGUF loader (the code
+that first touches a model file, so the LLM03 entry point) found **two ways to crash the
+runtime and zero ways to corrupt its memory.**
+
+**Why this matters:**
+
+- This is the direct test of the real question: if a poisoned model comes in through the
+  supply chain, can it reach the deep runtime memory and be turned into something exploitable?
+- For this surface the answer is: it can take the process down (availability), but it cannot
+  get a memory-corruption primitive, so it does not climb toward code execution or reading
+  another session's memory.
+
+**How I tested it:** built the loader (llama.cpp `f113e02`, `ggml/src/gguf.cpp`) with
+AddressSanitizer + UndefinedBehaviorSanitizer and a libFuzzer harness around
+`gguf_init_from_file` (`src/runtime/fuzz_gguf.cpp`), seeded it with a valid model plus the
+malformed corpus, and ran a fork-mode campaign that keeps going past crashes. It collected 855
+crashing inputs. Triaging them (`src/runtime/triage.sh`) collapses them to their root causes:
+
+| Root cause | Where | CWE | Crashing inputs | Impact |
+|---|---|---|---|---|
+| `GGML_ASSERT(!key.empty())` — empty metadata key | `gguf.cpp:143` | 617 | 845 | process abort (DoS) |
+| `GGML_ASSERT(type_to_gguf_type<T>::value == type)` — array element type mismatch | `gguf.cpp:194` | 617 | 10 | process abort (DoS) |
+| AddressSanitizer memory corruption | — | — | **0** | none found |
+
+Minimal reproducers are in `data/gguf_crashes/` — the empty-key one is a **64-byte** file that
+aborts the loader. Machine-readable summary: `data/runtime_fuzz_gguf.json`.
+
+**What I recommend:**
+
+- The loader should return an error on these malformed inputs instead of asserting and calling
+  `ggml_abort()`. An abort is a denial of service anywhere a service loads a model it did not
+  produce (a shared inference host, a model marketplace). Worth an upstream note.
+- Where you must load third-party models, load them in a separate, restartable process so a
+  crash-on-load is contained — which is exactly the sandbox from Findings 2 and 3.
+
+**Honest limits:**
+
+- The two assertions capped how deep the fuzzer could go, so "0 memory corruption" means none
+  found up to the assertion walls, not a proof that none exists. The next step to push harder
+  is to neuter the known asserts and re-fuzz, then move the same method to the tokenizer (LLM01),
+  which is more reachable and historically buggier.
+- This is current llama.cpp, which is under continuous OSS-Fuzz; a hardened loader is the
+  expected result, and finding only DoS here is consistent with that.
+
 ---
 
 ## What to keep in mind about these results

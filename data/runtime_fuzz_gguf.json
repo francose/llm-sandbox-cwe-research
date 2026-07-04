@@ -1,0 +1,34 @@
+{
+  "target": "gguf_init_from_file  (llama.cpp, ggml/src/gguf.cpp)",
+  "llama_cpp_commit": "f113e02",
+  "harness": "src/runtime/fuzz_gguf.cpp (libFuzzer, no_alloc=true parse path)",
+  "instrumentation": "clang -fsanitize=address,undefined,fuzzer",
+  "campaign": {
+    "mode": "libFuzzer -fork=1 -ignore_crashes",
+    "max_total_time_s": 240,
+    "crash_inputs_collected": 855
+  },
+  "root_causes": [
+    {
+      "class": "reachable_assertion_dos",
+      "cwe": "CWE-617",
+      "location": "ggml/src/gguf.cpp:143",
+      "assert": "GGML_ASSERT(!key.empty())",
+      "crash_inputs": 845,
+      "repro": "data/gguf_crashes/dos_empty_key.gguf",
+      "note": "a GGUF with an empty metadata key aborts the whole process on load"
+    },
+    {
+      "class": "reachable_assertion_dos",
+      "cwe": "CWE-617",
+      "location": "ggml/src/gguf.cpp:194",
+      "assert": "GGML_ASSERT(type_to_gguf_type<T>::value == type)",
+      "crash_inputs": 10,
+      "repro": "data/gguf_crashes/dos_array_type_mismatch.gguf",
+      "note": "an array metadata value with a mismatched element type aborts the loader"
+    }
+  ],
+  "memory_corruption_found": 0,
+  "impact": "LLM03 poisoned GGUF -> process abort (denial of service). No memory primitive; does not climb to code execution or memory disclosure on this surface.",
+  "caveat": "The assertions capped the fuzzer's depth, so 0 memory corruption means none found up to the assertion walls, not a proof of absence. A deeper campaign would neuter the known asserts and re-fuzz."
+}

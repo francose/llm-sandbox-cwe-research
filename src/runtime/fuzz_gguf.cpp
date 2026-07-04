@@ -9,6 +9,7 @@
 // this with -fsanitize=address,undefined,fuzzer. See run notes in the README.
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <unistd.h>
 
 #include "ggml.h"

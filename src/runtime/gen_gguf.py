@@ -108,6 +108,12 @@ def variants():
 
     # wrong magic / version (should be rejected cleanly; sanity of error path)
     v["12_bad_version"] = build(1, 2, kv, tensor("t", [4], 0, 0), version=99)
+
+    # empty metadata key -> reachable assertion DoS (gguf.cpp:143 GGML_ASSERT(!key.empty)).
+    # Found by the fuzzing campaign; minimal hand-built reproducer. One KV whose key is the
+    # empty string aborts the whole process on load. This is a ~30-byte poisoned model.
+    empty_key = u64(0) + u32(T_UINT32) + u32(0)      # key len 0, type uint32, value 0
+    v["13_empty_key_dos"] = build(0, 1, empty_key, b"")
     return v
 
 
