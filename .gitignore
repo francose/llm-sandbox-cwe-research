@@ -32,3 +32,6 @@ zig-cache/
 
 # --- KEEP evidence: data/*.jsonl is reproducible output we want tracked ---
 # (nothing under data/ is ignored on purpose)
+
+# --- compiled ASan repro binaries (rebuilt from the .c drivers) ---
+*.bin
