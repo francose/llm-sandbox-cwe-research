@@ -15,7 +15,7 @@
 
 \setlength{\emergencystretch}{3em}
 
-% H3 figures, verified from h3_full_results.jsonl + hand-verification.
+% generated-code figures, verified from h3_full_results.jsonl + hand-verification.
 \newcommand{\Ntotal}{216}
 \newcommand{\Nusable}{213}
 \newcommand{\Ncfail}{3}
@@ -185,7 +185,14 @@ is exploitable and undetected.
 
 \section*{Methodology and Experimental Setup}
 
-\subsection*{Detector coverage (H1)}
+We test three falsifiable hypotheses. The first, the \emph{coverage hypothesis}, is that the
+commodity detection stack covers spatial memory corruption. The second, the
+\emph{toolchain-generality hypothesis}, is that any gap the first finds is an artifact of a
+single compiler or version. The third, the \emph{generated-code hypothesis}, is that
+model-generated C both produces the class and is caught by the static stack. Each is set up
+below and tested in the Results; as stated, each is falsified.
+
+\subsection*{The coverage hypothesis}
 We point all ten detectors at each of six classes and record CAUGHT versus MISSED, saving
 raw per-cell evidence. Each class is a minimal probe with a self-check that prints
 \texttt{outcome=corrupted|clean}. Each runtime detector is built with isolation flags so the
@@ -196,13 +203,13 @@ as ``unknown warning option'' is filtered so it can never count as a catch. We m
 detector in isolation rather than as a combined pass because the claim of interest is
 \emph{which} layer is blind.
 
-\subsection*{Toolchain generality (H2)}
+\subsection*{The toolchain-generality hypothesis}
 We re-run the six classes through five compilers (gcc-11, gcc-12, clang-14, clang-15, tcc),
 \texttt{\_FORTIFY\_SOURCE} levels 2 and 3, and ASan from both gcc and clang, and compare
 against a companion aarch64/gcc-15 environment. The gap holds if intra-object stays a total
 gap and no compiler or level newly catches it.
 
-\subsection*{Generated-code study (H3)}
+\subsection*{The generated-code hypothesis}
 We give three local models (qwen2.5-coder:1.5b, deepseek-coder:6.7b, qwen2.5-coder:7b)
 \Ntotal{} security-neutral fixed-buffer tasks (18 tasks, 4 samples each), asking for a struct
 with a fixed \texttt{char} field filled from variable-length input, with no security framing.
@@ -220,7 +227,7 @@ All experiments ran on Ubuntu 22.04.5 (x86\_64, WSL2 kernel 6.18) with gcc-11.4/
 clang-14/15, cppcheck 2.7, valgrind 3.18.1, and tcc 0.9.27; models served locally via ollama.
 
 \section*{Case Studies}
-The six classes exercised by H1 and H2:
+The six classes exercised by the coverage and toolchain-generality hypotheses:
 
 \begin{itemize}[leftmargin=1.4em]
   \item \textbf{Intra-object out-of-bounds write (CWE-787).} An unbounded copy overruns a
@@ -237,17 +244,18 @@ The six classes exercised by H1 and H2:
 
 \section*{Results}
 
-\subsection*{Detector coverage (H1)}
+\subsection*{Detector coverage}
 Table~\ref{tab:h1} gives the coverage. Intra-object overflow is caught by no detector, a
 total gap, while the heap and stack variants of the same CWE-787 are caught at runtime by
 ASan and Valgrind. All six compile-time detectors caught none of the six classes on these
 probes. Under the shipped build (\texttt{-O2 -D\_FORTIFY\_SOURCE=2}, default canary), five of
 six classes are silent; only the stack overflow is detected, by the canary. The intra-object
-row is the load-bearing result and is re-verified in H2; the integer-overflow and ABI-skew
+row is the load-bearing result and is re-verified under the toolchain-generality hypothesis;
+the integer-overflow and ABI-skew
 rows summarise the recorded matrix and mark partial/absent cells conservatively.
 
 \begin{table}[h]\centering
-\caption{H1: which commodity detector catches which class. ``static'' abbreviates all six
+\caption{Detector coverage: which commodity detector catches which class. ``static'' abbreviates all six
 compile-time detectors. Shipped state is the \texttt{-O2 -D\_FORTIFY\_SOURCE=2} build.}
 \label{tab:h1}
 \begin{tabular}{lccccl}
@@ -264,14 +272,14 @@ ABI/type skew                 & miss & --   & --     & --     & silent \\
 \end{tabular}
 \end{table}
 
-\subsection*{Toolchain generality (H2)}
+\subsection*{Toolchain generality}
 No compiler warned on intra-object at any level; the shipped state is silent under
 \texttt{\_FORTIFY\_SOURCE} 2 and 3; ASan misses it under both gcc and clang; the gap holds
 across two architectures and gcc versions 11, 12, and 15. One honest side-finding: gcc-12
 emits a compile-time use-after-free warning where gcc-11 is silent, which is real but
 orthogonal to intra-object.
 
-\subsection*{Generated-code study (H3)}
+\subsection*{Generated-code study}
 Of \Ntotal{} generations, \Nusable{} compiled against the oracle (\Ncfail{} were contract
 deviations). \Nvuln{} of \Nusable{} usable snippets contain an ASan-confirmed spatial
 overflow, an overall rate of \RateAll{} (95\% CI \RateAllCI{}), dominated by model size
@@ -284,7 +292,7 @@ in generated code: the one candidate our sentinel oracle flagged was a false pos
 function that legitimately assigns its trailing field, removed by hand-verification.
 
 \begin{table}[h]\centering
-\caption{H3: ASan-confirmed spatial-overflow rate by model, and how the commodity static
+\caption{Generated-code study: ASan-confirmed spatial-overflow rate by model, and how the commodity static
 stack diagnosed the confirmed cases.}
 \label{tab:h3}
 \begin{tabular}{lccc}
@@ -303,13 +311,14 @@ qwen2.5-coder:7b    & 0/72  & 0.0\%  & 0--5\% \\
 
 \section*{Observations}
 The three results connect at the layer level rather than by asserting more than we measured.
-The shipped \emph{static} layer caught none of the \Nvuln{} generated overflows; H1 and H2
-show the shipped \emph{runtime} tool (AddressSanitizer) is blind to the intra-object subclass;
+The shipped \emph{static} layer caught none of the \Nvuln{} generated overflows; the coverage
+and toolchain-generality results show the shipped \emph{runtime} tool (AddressSanitizer) is
+blind to the intra-object subclass;
 so neither layer is a sufficient detector for the class. One generated overflow
 (\texttt{parse\_kv}) makes the boundary concrete: its ASan report shows the write reaching the
 allocation boundary only after passing \emph{through} an adjacent field, so a bounded version
 of the same code would be the intra-object probe, invisible to ASan. A second observation cuts
-against intuition: in H3 the smallest model was the most memory-unsafe, the reverse of a naive
+against intuition: in the generated-code study the smallest model was the most memory-unsafe, the reverse of a naive
 ``bigger is always worse'' expectation, so memory-safety carefulness is its own axis.
 
 \section*{Recommendations}
@@ -322,7 +331,7 @@ posture is to treat fixed-size struct fields filled from variable-length input a
 target in generated code, since that is the exact shape the detectors miss.
 
 \section*{Limitations}
-The H3 rate is a lower bound: the intra-object oracle cannot see mid-struct overflows, the
+The generated-code rate is a lower bound: the intra-object oracle cannot see mid-struct overflows, the
 multi-field tasks are judged by the boundary oracle alone, and one excluded compile-fail
 contained an unbounded copy, all of which can only raise the true rate. The oracle's
 intra-object check produced one false positive (a function that legitimately writes its
@@ -330,7 +339,8 @@ trailing scalar), caught by hand-verification; the confirmed rate rests on Addre
 The rate is conditional on fixed-buffer tasks and on the provided interface, is measured on
 three small open-weight models on one machine, and reflects single-shot generation rather than
 a multi-turn agent. One toolchain per version was used; the intra-object result is structural
-and H2 spans two architectures, but the broader matrix should be re-run elsewhere. A non-default
+and the toolchain-generality result spans two architectures, but the broader matrix should be
+re-run elsewhere. A non-default
 ASan build with intra-object red zones can catch some of these overflows but is C++-oriented,
 opt-in, and part of no shipped build, so the practical gap stands.
 
