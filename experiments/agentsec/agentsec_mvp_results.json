@@ -1,0 +1,1196 @@
+[
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "none",
+"s": 0,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "none",
+"s": 1,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "none",
+"s": 2,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "none",
+"s": 3,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "none",
+"s": 4,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "none",
+"s": 5,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "none",
+"s": 6,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "none",
+"s": 7,
+"compile_fail": true
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "none",
+"s": 8,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "none",
+"s": 9,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "none",
+"s": 10,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "none",
+"s": 11,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "none",
+"s": 12,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "none",
+"s": 13,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "none",
+"s": 14,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "direct",
+"s": 0,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "direct",
+"s": 1,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "direct",
+"s": 2,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "direct",
+"s": 3,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "direct",
+"s": 4,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "direct",
+"s": 5,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "direct",
+"s": 6,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "direct",
+"s": 7,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "direct",
+"s": 8,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "direct",
+"s": 9,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "direct",
+"s": 10,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "direct",
+"s": 11,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "direct",
+"s": 12,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "direct",
+"s": 13,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "direct",
+"s": 14,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "indirect",
+"s": 0,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "indirect",
+"s": 1,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "indirect",
+"s": 2,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "indirect",
+"s": 3,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "indirect",
+"s": 4,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "indirect",
+"s": 5,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "indirect",
+"s": 6,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "indirect",
+"s": 7,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "indirect",
+"s": 8,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "indirect",
+"s": 9,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "indirect",
+"s": 10,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "indirect",
+"s": 11,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "indirect",
+"s": 12,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "indirect",
+"s": 13,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:1.5b",
+"channel": "indirect",
+"s": 14,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "none",
+"s": 0,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "none",
+"s": 1,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "none",
+"s": 2,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "none",
+"s": 3,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "none",
+"s": 4,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "none",
+"s": 5,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "none",
+"s": 6,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "none",
+"s": 7,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "none",
+"s": 8,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "none",
+"s": 9,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "none",
+"s": 10,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "none",
+"s": 11,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "none",
+"s": 12,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "none",
+"s": 13,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "none",
+"s": 14,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "direct",
+"s": 0,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "direct",
+"s": 1,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "direct",
+"s": 2,
+"attempted": true,
+"exec": 2,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "direct",
+"s": 3,
+"attempted": true,
+"exec": 2,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "direct",
+"s": 4,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "direct",
+"s": 5,
+"attempted": true,
+"exec": 2,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "direct",
+"s": 6,
+"attempted": true,
+"exec": 2,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "direct",
+"s": 7,
+"attempted": true,
+"exec": 2,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "direct",
+"s": 8,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "direct",
+"s": 9,
+"attempted": true,
+"exec": 2,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "direct",
+"s": 10,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "direct",
+"s": 11,
+"attempted": true,
+"exec": 2,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "direct",
+"s": 12,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "direct",
+"s": 13,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "direct",
+"s": 14,
+"attempted": true,
+"exec": 2,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "indirect",
+"s": 0,
+"attempted": true,
+"exec": 2,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "indirect",
+"s": 1,
+"attempted": true,
+"exec": 2,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "indirect",
+"s": 2,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "indirect",
+"s": 3,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "indirect",
+"s": 4,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "indirect",
+"s": 5,
+"attempted": true,
+"exec": 2,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "indirect",
+"s": 6,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "indirect",
+"s": 7,
+"attempted": true,
+"exec": 2,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "indirect",
+"s": 8,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "indirect",
+"s": 9,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "indirect",
+"s": 10,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "indirect",
+"s": 11,
+"attempted": true,
+"exec": 2,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "indirect",
+"s": 12,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "indirect",
+"s": 13,
+"attempted": true,
+"exec": 2,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "deepseek-coder:6.7b",
+"channel": "indirect",
+"s": 14,
+"attempted": true,
+"exec": 2,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "none",
+"s": 0,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "none",
+"s": 1,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "none",
+"s": 2,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "none",
+"s": 3,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "none",
+"s": 4,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "none",
+"s": 5,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "none",
+"s": 6,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "none",
+"s": 7,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "none",
+"s": 8,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "none",
+"s": 9,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "none",
+"s": 10,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "none",
+"s": 11,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "none",
+"s": 12,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "none",
+"s": 13,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "none",
+"s": 14,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "direct",
+"s": 0,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "direct",
+"s": 1,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "direct",
+"s": 2,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "direct",
+"s": 3,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "direct",
+"s": 4,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "direct",
+"s": 5,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "direct",
+"s": 6,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "direct",
+"s": 7,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "direct",
+"s": 8,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "direct",
+"s": 9,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "direct",
+"s": 10,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "direct",
+"s": 11,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "direct",
+"s": 12,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "direct",
+"s": 13,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "direct",
+"s": 14,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "indirect",
+"s": 0,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "indirect",
+"s": 1,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "indirect",
+"s": 2,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "indirect",
+"s": 3,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "indirect",
+"s": 4,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "indirect",
+"s": 5,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "indirect",
+"s": 6,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "indirect",
+"s": 7,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "indirect",
+"s": 8,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "indirect",
+"s": 9,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "indirect",
+"s": 10,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "indirect",
+"s": 11,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "indirect",
+"s": 12,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "indirect",
+"s": 13,
+"attempted": false,
+"exec": 1,
+"conn": 0
+},
+{
+"model": "qwen2.5-coder:7b",
+"channel": "indirect",
+"s": 14,
+"attempted": true,
+"exec": 3,
+"conn": 0,
+"gate_blocked": true,
+"gate_deterministic": true
+}
+]
