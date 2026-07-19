@@ -24,6 +24,7 @@ safe anyway?
 | P10 | Attacker at the low level | As an attacker, what harm can I do and what are the results? | runs through the whole thing | ongoing lens |
 | P11 | Can the gate be defeated? | Can an adversary beat the control itself? | TOCTOU (#6), strstr path evasion (../symlink) | NOT tested |
 | P12 | Generality | Does it hold across models, harnesses, architectures, languages? | interop track | NOT tested (3 local models, 1 host) |
+| P13 | Intent–footprint divergence | Does the model's stated reasoning (chain of thought) match its actual syscalls, and does the mismatch separate injection / autonomous / benign? | (new) capture CoT + diff against the footprint | candidate — not started |
 
 ## Clusters — three lenses each problem falls under
 
@@ -72,3 +73,55 @@ the paper's *prose* claims P6/P7/P8 more strongly than the experiments that land
 
 So the near-term work is aligning the narrative to the evidence (P5/P6/P7 as the spine), and, if we
 want the harder claims, actually testing P11 (gate-defeat) and P12 (generality).
+
+## Ideation log — interceptability, richer decisions, reading the chain of thought
+
+Captured from the "are the bottom outcomes all binary?" thread. Keep for the paper skeleton.
+
+### 1. Binary is the decision, not the observation
+The gate's *decision* is binary (allow / deny) only because you cannot half-run a syscall. The
+*observation* is high-dimensional: ordered sequence, arguments (path, address, fd, bytes), timing,
+frequency. Our gate collapses all of that to one bit per call. "Binary" is a choice we imposed, not
+a property of the layer. Three richer decisions are already latent in what we built:
+- **Argument-graded** (rootful already does this): deny `unlink` of *this* path, allow *that*.
+- **Sequence-graded** (circuit breaker): decide over a window, N suspicious calls -> escalate.
+- **A third state: HOLD.** The rootful supervisor pauses the syscall until it responds — so it can
+  escalate to a human / policy engine and *ask*, not just allow/deny. allow / deny / hold-and-ask is
+  strictly richer, and the mechanism already exists.
+
+### 2. Interceptability is a gradient, with a floor and a ceiling
+- **Floor:** anything happening entirely inside the process address space with no syscall is
+  invisible to a syscall gate. The intra-object overflow (P9) is the proof — crosses no kernel
+  boundary, so it is un-interceptable at this layer by construction. Interception requires the action
+  to cross a boundary you are watching.
+- **Ceiling:** intent is never mechanically interceptable. You can intercept the *act*, never the
+  *reason*.
+- So interceptability = "does the action cross an observable boundary, and does that boundary carry
+  enough context to decide." Kernel-mediated discrete acts (execve, connect, unlink) score high;
+  in-process memory ops score zero. The gradient itself is a finding worth stating.
+
+### 3. Reading the chain of thought = a SECOND interception point (top of the stack)
+CoT / plan / tool-call reasoning gives what the syscall never can: *rich* (semantic) and *early*
+(before the act). But it is *stochastic and spoofable* — CoT can be unfaithful to actual behavior,
+and an injected agent can have a benign-looking CoT while emitting a malicious syscall (or vice
+versa). On its own it fails the certifiability test, so it must NOT be the trust boundary.
+
+### 4. The novel move: score the DIVERGENCE between the two points
+- Observe intent at the top (CoT): rich, early, untrusted.
+- Enforce at the bottom (syscall): binary, late, certified.
+- **Measure the gap.** CoT says "write a log" but the process attempts `execve("/bin/sh")` -> that
+  mismatch is the injection/deception signal. Neither layer alone yields it; only the correlation
+  does. Stays honest: never trust the CoT, use it as a cross-check against the ground-truth
+  footprint; the gate still enforces.
+- Reframes the stack: **observe at the top, enforce at the bottom, score the gap** between what it
+  said and what it did. Intent-agnostic gate = trust boundary; CoT = telemetry; divergence = detector.
+
+### 5. Spawns P13 (intent–footprint divergence)
+Testable with what we have: we already capture the syscall footprint; also capture the model's
+reasoning trace and diff them. Question: does divergence separate injection vs autonomous vs benign?
+Candidate second axis of the paper (the first axis being the certifiable gate).
+
+### Threads to pull next
+- (a) richer decision space: hold / escalate / sequence-scoring instead of binary allow/deny.
+- (b) the interceptability gradient stated as a law (floor = no-syscall = invisible; ceiling = intent).
+- (c) P13 CoT-vs-footprint divergence as a new experiment and a second axis.
