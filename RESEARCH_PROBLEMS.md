@@ -174,7 +174,23 @@ the left-hand gradient. See `problems_stack_v3.svg`.
 | The gate / boundary | rare denials; **stops after first block** (learns) | **repeats the blocked call at fixed rate** (no learning) | **retries with variation toward the same goal** (adapts) |
 | Kernel / OS | scheduler jitter — the noise floor (also the strace-jitter confound); below the attribution plane | — | — |
 
-### Three things this reframe buys
+### Pilot result (EXP-14) — the cadence claim did NOT survive first contact with data
+
+Ran it instead of asserting it (`experiments/agentsec/cadence_pilot.py`, `EXP14_RESULTS.md`).
+One host, qwen2.5-coder:1.5b, N=18, decision-layer inter-action intervals:
+- script-flat-out vs live agent separate only on **magnitude** (5 µs vs 566 ms) — useless for
+  attribution, since a script closes the gap by adding sleeps.
+- A dumb **random-sleep script is not separable from the live agent** on cadence *shape*
+  (CV 0.54 vs 0.45; burstiness -0.30 vs -0.38; 15/17 agent intervals overlap the script's range).
+  → empirical confirmation of the review: **raw cadence cannot attribute actor class.**
+- It refuted our own v3 glyphs: the agent measured **regular (B=-0.30), not bursty**; the script
+  measured **noisy (CV=1.14), not metronomic** (µs-scale scheduler jitter dominates).
+
+So the v3 cadence glyphs are conjecture the data killed — do not use them as findings. The only
+part still standing is the untested **gate-reaction** row (stop/repeat/adapt + argument content),
+which keys on retry *content*, not timing. It must be run and allowed to fail.
+
+### Three things this reframe buys (NOTE: item 1 is now refuted by EXP-14; kept for the record)
 
 1. **The least-spoofable signal lives at the gate, not the clock.** Raw inter-arrival timing (execution
    row) is trivially spoofed — an agent that wants to look human injects sleeps (the reviewers' correct
