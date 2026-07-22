@@ -84,6 +84,13 @@
   <text x="871" y="418" text-anchor="middle" font-size="11" fill="#1b5e20">observation tap #2 · ground truth</text>
   <text x="871" y="434" text-anchor="middle" font-size="11" font-weight="700" fill="#1b5e20">what it actually DID (trusted)</text>
 
+  <!-- P14 chronological / actor-attribution tap (reads the TIMING of the footprint) -->
+  <path d="M871,450 L871,461" stroke="#7b1fa2" stroke-width="1.6" marker-end="url(#av)"/>
+  <rect x="746" y="463" width="250" height="50" rx="10" fill="#ede7f6" stroke="#4527a0" stroke-width="2"/>
+  <text x="871" y="482" text-anchor="middle" font-size="12" font-weight="800" fill="#311b92">P14 · CHRONOLOGICAL FINGERPRINT</text>
+  <text x="871" y="497" text-anchor="middle" font-size="9.5" fill="#4527a0">cadence / intervals / ordering of the same footprint</text>
+  <text x="871" y="509" text-anchor="middle" font-size="10" font-weight="700" fill="#b71c1c">human vs automation vs agent  [NEW]</text>
+
   <!-- Divergence detector P13 -->
   <path d="M996,190 C1030,200 1030,270 1024,290" fill="none" stroke="#7b1fa2" stroke-width="1.6" marker-end="url(#av)"/>
   <path d="M996,412 C1030,400 1030,340 1024,320" fill="none" stroke="#7b1fa2" stroke-width="1.6" marker-end="url(#av)"/>

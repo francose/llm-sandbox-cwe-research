@@ -25,18 +25,22 @@ safe anyway?
 | P11 | Can the gate be defeated? | Can an adversary beat the control itself? | TOCTOU (#6), strstr path evasion (../symlink) | NOT tested |
 | P12 | Generality | Does it hold across models, harnesses, architectures, languages? | interop track | NOT tested (3 local models, 1 host) |
 | P13 | Intent–footprint divergence | Does the model's stated reasoning (chain of thought) match its actual syscalls, and does the mismatch separate injection / autonomous / benign? | (new) capture CoT + diff against the footprint | candidate — not started |
+| P14 | Actor attribution (chronological fingerprint) | From the footprint's *timing / cadence / ordering* — not the syscall set — can you tell a human from scripted automation from an autonomous agent, at the syscall boundary, intent-agnostic? | (new) timestamped syscall sequence → temporal features → classify actor class | candidate — not started |
 
 ## Clusters — three lenses each problem falls under
 
 - **THREAT** (what can go wrong): P2 manipulation, P3 autonomous destruction, P10 attacker view.
-- **MEASUREMENT** (how we observe / prove it): P1 observability, P9 detection-can't-certify.
+- **MEASUREMENT** (how we observe / prove it): P1 observability, P9 detection-can't-certify,
+  P13 intent–footprint divergence, P14 actor attribution (temporal axis).
 - **CONTROL** (the deterministic defense): P6 interception, P7 rootless-vs-rootful, P8 completeness,
   P11 gate-defeat.
 
 The interesting problems sit in the **overlaps** between lenses:
 
 - **THREAT ∩ MEASUREMENT** → **P4 two forces, one footprint** (two different threats collapse to one
-  measured footprint).
+  measured footprint). **P14 is P4's counter-tension**: the syscall *set* converges, but the *chronology*
+  of that footprint (cadence, inter-call intervals, ordering) may re-separate human / script / agent even
+  when the calls are byte-identical. P4 says the footprint is one; P14 asks whether time re-splits it.
 - **MEASUREMENT ∩ CONTROL** → **P5 certifiability** (you measure the control's invariance, not the
   agent's rate).
 - **THREAT ∩ CONTROL** → **P10 attacker at the low level** (the adversary meeting the boundary).
@@ -54,7 +58,7 @@ Everyone else defends at the top (probabilistic); we defend at the boundary (det
 |---|---|---|
 | Intent / reasoning | unknowable, stochastic | P2 injection, P3 autonomous, **P4 (the two forces DIVERGE here)** |
 | Output / artifact | inspectable but leaky | P9 detectors miss it (static analysis / ASan fail) |
-| Execution / process | observable, deterministic footprint | P1 observability, P10 attacker view, **P4 (the forces CONVERGE to one footprint here)** |
+| Execution / process | observable, deterministic footprint | P1 observability, P10 attacker view, **P4 (the forces CONVERGE to one footprint here)**, P14 actor attribution (the *timing* of this layer) |
 | The gate / syscall boundary | the one certifiable control | P5 certifiability, P6 interception, P7 rootless vs rootful, P8 completeness, P11 gate-defeat |
 | Kernel / OS | where harm lands if unblocked | — |
 
@@ -121,7 +125,33 @@ Testable with what we have: we already capture the syscall footprint; also captu
 reasoning trace and diff them. Question: does divergence separate injection vs autonomous vs benign?
 Candidate second axis of the paper (the first axis being the certifiable gate).
 
+### 6. Chronological fingerprinting = a THIRD observation dimension (spawns P14)
+Same footprint, different *time signature*. We already record what syscalls happen; if we also record
+*when* — per-call timestamps, inter-call intervals, ordering, burstiness — the temporal shape of the
+footprint may tell apart three actor classes even when the syscall set is identical:
+- **Human:** irregular gaps (seconds–minutes), think-time variance, corrections / backtracking,
+  no machine-speed bursts.
+- **Scripted automation:** near-constant cadence, no think time, deterministic ordering, fixed bursts.
+- **Autonomous agent:** reasoning-paced — tool-call + generation latency, semantically-driven ordering,
+  self-correction patterns distinct from both human hesitation and script regularity.
+
+Novelty vs. prior art: behavioral biometrics / bot detection usually work at the UI layer (mouse,
+keystroke, HTTP cadence). P14 does it at the **syscall boundary** — the same intent-agnostic ground
+truth the gate already sees — so attribution rides on the control's own telemetry, no extra trust surface.
+
+This gives a clean **trio of observation dimensions** on one footprint:
+- **P1 — what** (the syscall set / sequence): ground truth of the act.
+- **P13 — said vs did** (CoT vs footprint): divergence = injection / deception.
+- **P14 — who / cadence** (temporal signature): attribution = human vs automation vs agent.
+
+Direct tension with **P4**: P4's whole point is that intent-difference collapses to one footprint, so one
+gate covers both forces. P14 asks the sharper question — does the footprint *stay* collapsed under time,
+or does chronology re-separate the actors? Either answer is a result: if time re-separates them, attribution
+is possible at the boundary; if it does not, P4's collapse is even stronger than claimed.
+
 ### Threads to pull next
 - (a) richer decision space: hold / escalate / sequence-scoring instead of binary allow/deny.
 - (b) the interceptability gradient stated as a law (floor = no-syscall = invisible; ceiling = intent).
 - (c) P13 CoT-vs-footprint divergence as a new experiment and a second axis.
+- (d) P14 chronological fingerprint: timestamp the footprint, test whether cadence re-separates
+  human / automation / agent (P4's counter-tension, and a third observation dimension).
