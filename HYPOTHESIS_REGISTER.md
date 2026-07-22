@@ -21,7 +21,7 @@ this file wins.
 | P6/P7 | Gate catches the dangerous call | **REFUTED — ADVERSARIAL** | holds only vs non-adversarial artifacts; TOCTOU + path evasion |
 | P8 | Blocklist is complete | **REFUTED** | io_uring, open/openat2/creat, arch numbering, UDP egress — verified gaps |
 | P14c | Cadence attributes actor class | **REFUTED** | EXP-14: random-sleep script indistinguishable from live agent |
-| P11 | Gate can be defeated (TOCTOU) | **UNTESTED** | CONTINUE re-read path confirmed in code (gate_rootful.c:163/217); no PoC run |
+| P11 | Gate can be defeated (TOCTOU) | **SURVIVED** | EXP-11: PoC bypasses the persist gate 768/4000 (19.2%) per attempt, ~100% with retry; gate blocks the same attack 4000/4000 head-on. Existence of bypass is host-independent. |
 | P12 | Generality across models/arch/langs | **UNTESTED** | single setup |
 | P13 | Intent–footprint (CoT) divergence detects injection | **UNTESTED + DEMOTED** | see point 1 |
 | P14g | Gate-reaction (stop/repeat/adapt) attributes actor | **UNTESTED + DEMOTED** | see point 1 |
@@ -56,9 +56,11 @@ claim, no "certifies against harm."
 
 ## Test queue (ranked) — each with a falsifiable pass/fail
 
-1. **P11 TOCTOU PoC** — race a path swap against the gate's validate→CONTINUE window.
-   *PASS(exploit) if the swapped path executes at rate > 0 over N trials; report the win-rate.* Decisive
-   for whether P7 (the "jewel") survives an adversary. Falsifiable, runnable on this host.
+1. ~~P11 TOCTOU PoC~~ — **DONE, SURVIVED (EXP-11).** 19.2%/attempt, ~100% with retry on the persist
+   file-op allow-path. Refinement: the execve *launch* path is NOT raceable on this gate (single-threaded,
+   pre-target); the reviewers had located it on execve — it's actually the file-op path. So P7's "rootful
+   catches persistence" holds only vs non-racing artifacts. Fix is architectural (kill the second read),
+   not a blocklist patch.
 2. **Benign corpus + false-positive rate** — add artifacts that *legitimately* need the watched syscalls;
    measure FP. *Gate is "usefully sound" only if FP is low AND TP high; deny-all fails this by design.*
    Fixes the review's deepest methodological hole (F4).
@@ -70,3 +72,5 @@ claim, no "certifies against harm."
 
 ## Change log
 - LOCKED. P13, P14 demoted (point 1). P14c refuted (EXP-14). P8, P6/P7 refuted per hypothesis review.
+- P11 SURVIVED (EXP-11): rootful persist gate bypassed via TOCTOU, 19.2%/attempt. Execve launch path
+  found NOT raceable on this gate (refines the reviewers). Next in queue: benign corpus + false-positive.
