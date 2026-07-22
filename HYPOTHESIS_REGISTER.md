@@ -51,6 +51,12 @@ gate; do not profile the actor.
 > incomplete (P8 refuted). Injection and autonomous malfunction both produce dangerous syscalls in this
 > setup (P2/P3, scoped).
 
+Two measured results now sharpen this (both host-independent code properties):
+- **The rootful argument-gate is bypassable (EXP-11):** a threaded TOCTOU on the CONTINUE allow-path
+  opens a persistence file the gate blocks 4000/4000 head-on; 19.2%/attempt, ~100% with retry.
+- **The rootful gate is selective but on a FP/FN Pareto front (EXP-12):** it is not deny-all (allows
+  benign), yet its `strstr` tokens trade false positives (un-anchored) against evasion (anchored).
+
 Everything beyond this is `UNTESTED` or `REFUTED`. No adversarial-completeness claim, no attribution
 claim, no "certifies against harm."
 
@@ -61,9 +67,11 @@ claim, no "certifies against harm."
    pre-target); the reviewers had located it on execve — it's actually the file-op path. So P7's "rootful
    catches persistence" holds only vs non-racing artifacts. Fix is architectural (kill the second read),
    not a blocklist patch.
-2. **Benign corpus + false-positive rate** — add artifacts that *legitimately* need the watched syscalls;
-   measure FP. *Gate is "usefully sound" only if FP is low AND TP high; deny-all fails this by design.*
-   Fixes the review's deepest methodological hole (F4).
+2. ~~Benign corpus + false-positive rate~~ — **DONE (EXP-12).** Rootful persist gate has REAL selectivity
+   (TN=6, allows benign; not deny-all — rebuts F4 for the rootful gate). But `strstr` tokens sit on a
+   FP/FN Pareto front: un-anchored tokens false-positive on benign lookalikes (4/4), slash-anchored tokens
+   avoid FP but are exactly the ones evaded by path normalization (EXP-11). Substring matching cannot be
+   both precise and evasion-resistant without real path canonicalization.
 3. **P4 measured** — independently generate attacker vs autonomous artifacts; measure footprint
    indistinguishability *at argument granularity*, not just syscall number. *PASS if distributions overlap
    at the argument level.*
@@ -73,4 +81,6 @@ claim, no "certifies against harm."
 ## Change log
 - LOCKED. P13, P14 demoted (point 1). P14c refuted (EXP-14). P8, P6/P7 refuted per hypothesis review.
 - P11 SURVIVED (EXP-11): rootful persist gate bypassed via TOCTOU, 19.2%/attempt. Execve launch path
-  found NOT raceable on this gate (refines the reviewers). Next in queue: benign corpus + false-positive.
+  found NOT raceable on this gate (refines the reviewers).
+- EXP-12 done: gate selectivity is real (not deny-all) but strstr tokens are on a FP/FN Pareto front.
+  Next in queue: P4 measured (argument-level footprint indistinguishability), then P12 second axis.
