@@ -3,6 +3,10 @@
 A working map of the problems this project investigates, so the experiments and the paper
 stay tied to real questions rather than drifting. See `problems_venn.svg` for the visual.
 
+> **Status of truth lives in `HYPOTHESIS_REGISTER.md`, not here.** This file is the map; the register
+> is the gate for what may be written. Nothing becomes a paper claim unless the register marks it
+> `SURVIVED`. When the two disagree, the register wins.
+
 ## The one problem underneath all of it
 
 You cannot trust the model, its intent, or its output. How do you make an autonomous agent
@@ -24,8 +28,8 @@ safe anyway?
 | P10 | Attacker at the low level | As an attacker, what harm can I do and what are the results? | runs through the whole thing | ongoing lens |
 | P11 | Can the gate be defeated? | Can an adversary beat the control itself? | TOCTOU (#6), strstr path evasion (../symlink) | NOT tested |
 | P12 | Generality | Does it hold across models, harnesses, architectures, languages? | interop track | NOT tested (3 local models, 1 host) |
-| P13 | Intent–footprint divergence | Does the model's stated reasoning (chain of thought) match its actual syscalls, and does the mismatch separate injection / autonomous / benign? | (new) capture CoT + diff against the footprint | candidate — not started |
-| P14 | Actor attribution (chronological behavior) | From the *timing / cadence / ordering / reaction-over-time* — not the syscall set — can you tell a human from scripted automation from an autonomous agent? Cross-cutting: every layer emits a signature. | (new) live-actor harness (not the artifact rig) → per-layer temporal + argument features → classify actor class | candidate — cross-cutting measurement axis; needs a live-actor harness |
+| P13 | Intent–footprint divergence | Does the model's stated reasoning (chain of thought) match its actual syscalls, and does the mismatch separate injection / autonomous / benign? | (new) capture CoT + diff against the footprint | **DEMOTED** (point 1): forensic / non-adversarial only, not a detector — see register |
+| P14 | Actor attribution (chronological behavior) | From the *timing / cadence / ordering / reaction-over-time* — not the syscall set — can you tell a human from scripted automation from an autonomous agent? | live-actor harness → temporal + argument features | **cadence REFUTED (EXP-14)**; gate-reaction UNTESTED; **DEMOTED** (point 1) — see register |
 
 ## Clusters — three lenses each problem falls under
 
