@@ -25,7 +25,7 @@ safe anyway?
 | P11 | Can the gate be defeated? | Can an adversary beat the control itself? | TOCTOU (#6), strstr path evasion (../symlink) | NOT tested |
 | P12 | Generality | Does it hold across models, harnesses, architectures, languages? | interop track | NOT tested (3 local models, 1 host) |
 | P13 | Intent–footprint divergence | Does the model's stated reasoning (chain of thought) match its actual syscalls, and does the mismatch separate injection / autonomous / benign? | (new) capture CoT + diff against the footprint | candidate — not started |
-| P14 | Actor attribution (chronological fingerprint) | From the footprint's *timing / cadence / ordering* — not the syscall set — can you tell a human from scripted automation from an autonomous agent, at the syscall boundary, intent-agnostic? | (new) timestamped syscall sequence → temporal features → classify actor class | candidate — not started |
+| P14 | Actor attribution (chronological behavior) | From the *timing / cadence / ordering / reaction-over-time* — not the syscall set — can you tell a human from scripted automation from an autonomous agent? Cross-cutting: every layer emits a signature. | (new) live-actor harness (not the artifact rig) → per-layer temporal + argument features → classify actor class | candidate — cross-cutting measurement axis; needs a live-actor harness |
 
 ## Clusters — three lenses each problem falls under
 
@@ -155,3 +155,54 @@ is possible at the boundary; if it does not, P4's collapse is even stronger than
 - (c) P13 CoT-vs-footprint divergence as a new experiment and a second axis.
 - (d) P14 chronological fingerprint: timestamp the footprint, test whether cadence re-separates
   human / automation / agent (P4's counter-tension, and a third observation dimension).
+
+## Chronological behavior as a cross-cutting axis (elevating P14)
+
+P14 was drawn as a box hanging off the execution layer. That undersells it. **Time is orthogonal to the
+stack.** Every layer emits a temporal signature, and the three actor classes — human, scripted automation,
+LLM agent — leave *different* signatures at *each* layer. So chronology is not one problem in one band; it
+is a vertical axis that crosses all of them, the way P12 generality is the envelope and certifiability is
+the left-hand gradient. See `problems_stack_v3.svg`.
+
+### The signature matrix (layer × actor)
+
+| Layer | Human | Scripted automation | LLM agent |
+|---|---|---|---|
+| Intent / reasoning | slow, variable think-time; goals revised; hesitation | none — no reasoning layer; instant branch on config | generation-paced deliberation; explicit plan, then revision |
+| Output / artifact | typed/edited over minutes; incremental saves; backtracking | emitted atomically (template render); no edit sequence | streamed at model speed; whole-function bursts; regenerate-on-error |
+| Execution / process | irregular command gaps (s–min); REPL/shell pace | metronomic, tight, deterministic ordering, machine-speed | round-trip cadence: a burst of calls per tool-invocation, then a gap for the next model round-trip |
+| The gate / boundary | rare denials; **stops after first block** (learns) | **repeats the blocked call at fixed rate** (no learning) | **retries with variation toward the same goal** (adapts) |
+| Kernel / OS | scheduler jitter — the noise floor (also the strace-jitter confound); below the attribution plane | — | — |
+
+### Three things this reframe buys
+
+1. **The least-spoofable signal lives at the gate, not the clock.** Raw inter-arrival timing (execution
+   row) is trivially spoofed — an agent that wants to look human injects sleeps (the reviewers' correct
+   objection). But the *reaction to a denial over a window* (gate row) is much harder to fake: stop
+   (human) vs blind-repeat (script) vs adapt-toward-goal (agent). Attribution should ride on the
+   closed-loop response to enforcement, not on idle cadence.
+2. **The argument-aware gate is already the sensor.** The rootful gate (P7) reads syscall arguments to
+   decide. The same read gives, for free, the *temporal + argument* sequence of attempts and denials — so
+   actor attribution is a byproduct of the control we already built, observed exactly at the trust
+   boundary. This is why P14 "overlaps everything": it binds the temporal axis to the CONTROL layer.
+3. **Timing alone is weak; timing + content is strong.** A script can add random sleeps and random
+   retries. What it cannot easily fake is *semantically coherent* adaptation — retrying a different path
+   to the *same* objective after a block. That coherence is visible only in the argument content of the
+   retries, not their timing. Chronology must be joined to argument analysis to attribute.
+
+### Honest boundaries (reconciling with the hypothesis review)
+
+- **Measurement, never a control.** Attribution informs triage/forensics and can *feed* the gate's
+  hold/escalate decision, but it must never *be* the gate — it degrades to chance against an adversary who
+  controls timing and retry-shape. It stays in the MEASUREMENT lens. (This is why the review's "cut P14 to
+  future work" stands *for the gate paper*; elevating it here makes it the spine of a second, measurement
+  paper, not a control claim in paper #1.)
+- **Different measurement plane.** The current rig measures a *compiled artifact's* footprint — and a
+  binary runs the same regardless of which model wrote it, so it carries **zero** actor cadence. To measure
+  actor chronology you must instrument the **live actor loop** (the agent's tool-call stream, the human's
+  shell session, the script's driver) over wall-clock time, with a jitter-clean tap (seccomp-notify or raw
+  ptrace, not strace). New harness, not a re-run of the old one.
+- **Prior art is real.** Forrest 1996 did single-layer syscall-sequence anomaly detection; bot-detection
+  did human-vs-bot cadence. The fresh cut is (a) *multi-layer* signatures and (b) the *human vs automation
+  vs LLM-agent* three-class attribution — especially the adapt-to-denial signal at the gate. Position
+  against that lineage; do not restate it.
