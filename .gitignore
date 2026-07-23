@@ -38,3 +38,6 @@ zig-cache/
 
 # --- reproduce.sh build dir (all binaries rebuilt from committed source) ---
 experiments/agentsec/out/
+paper/*.aux
+paper/*.log
+paper/*.out

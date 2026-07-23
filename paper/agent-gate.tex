@@ -1,0 +1,358 @@
+\documentclass[11pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{underscore}
+\usepackage{microtype}
+\usepackage[hidelinks]{hyperref}
+
+\setlength{\emergencystretch}{3em}
+
+% Measured figures. Every number traces to a committed experiment in
+% experiments/agentsec/ and is re-checkable via reproduce.sh (8/8).
+\newcommand{\Nrace}{4000}
+\newcommand{\RaceLo}{19.2}
+\newcommand{\RaceHi}{22.8}
+\newcommand{\InjAtt}{164}
+\newcommand{\AutoAtt}{45}
+\newcommand{\AutoEscape}{18}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  frame=single,
+  framerule=0.3pt,
+  framesep=4pt,
+  xleftmargin=2pt,
+  showstringspaces=false,
+  aboveskip=8pt,
+  belowskip=8pt
+}
+
+\title{Deterministic is not sound:\\
+an empirical evaluation of seccomp argument-inspection gates
+for containing LLM agents}
+\author{Sadik Erisen\thanks{This research was conducted independently. The views
+and findings are those of the author and do not reflect the position of any
+corporate employer. No data in this paper is fabricated; every figure traces to a
+committed artifact and is reproducible via \texttt{experiments/agentsec/reproduce.sh}.}\\[3pt]
+\normalsize Independent Researcher \& Graduate Student\\
+\normalsize University of Pennsylvania}
+\date{July 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Sandboxes that run untrusted LLM-agent code increasingly reach for a syscall-boundary
+control: a seccomp supervisor that inspects the \emph{arguments} of intercepted system
+calls and allows or denies each one. Because the supervisor's verdict is deterministic,
+it is tempting to treat the control as certified containment. We test that control
+directly, on a mechanical oracle that compiles and runs the code and reads its behaviour
+from \texttt{strace}, never from text. We report four findings. First, the
+argument-inspection gate is bypassable: it blocks a persistence write \Nrace/\Nrace{}
+times head-on, yet a two-thread time-of-check-to-time-of-use (TOCTOU) race on its
+allow path defeats it at \RaceLo--\RaceHi\% per attempt, which approaches certainty under
+retry. Second, attacker-injected and self-driven behaviour do not collapse to one syscall
+footprint: they share \texttt{execve}, but \AutoEscape\% of self-driven destruction takes
+a direct \texttt{unlink}/\texttt{rmdir} path that an \texttt{execve}/\texttt{connect} gate
+never observes. Third, the gate is genuinely selective rather than deny-all, but its
+substring path-matching admits false positives on benign look-alike filenames while its
+anchored tokens are evaded by path normalization. Fourth, attributing the actor from its
+behaviour---by timing, by stated intent, or by its reaction to a denial---fails as a
+control against an adversary that chooses its own behaviour. The determinism of the
+verdict is not soundness of the containment. What protects the host is coverage of the
+mechanisms an agent can use, and a denied agent enumerates the alternatives rather than
+stopping.
+\end{abstract}
+
+\section{Introduction}
+
+An LLM agent that writes and runs code is, from the operating system's point of view, an
+untrusted process whose intent cannot be read from its prompt, its reasoning trace, or the
+code it emits. A common containment proposal is to watch the one interface the process
+cannot avoid: the system-call boundary. A rootless filter blocks by syscall number; a
+richer, ``rootful'' design installs a seccomp user-notification supervisor that reads the
+pointer arguments of an intercepted call out of the target's memory and decides allow or
+deny per call. Argument visibility is the selling point---the supervisor can permit
+\texttt{openat} on a log file and deny it on \texttt{\char`~/.ssh/authorized\_keys}.
+
+The supervisor's verdict is deterministic: the same call with the same arguments yields the
+same decision every time. That property invites a category error, in which a deterministic
+control is presented as \emph{certified} containment. This paper separates the two. A
+verdict can be perfectly deterministic and still wrong, either because it inspects an
+argument the kernel later re-reads, or because the dangerous action never passes through a
+watched call at all. Determinism bounds the \emph{variance} of the control; soundness would
+bound its \emph{coverage and correctness}, and coverage is where the containment fails.
+
+We hold every claim to a mechanical standard. A statement that ``the agent attempted $X$''
+means a compiled program issued syscall $X$ under \texttt{strace} inside a rootless network
+namespace with a timeout; we never infer behaviour from generated text. Under that
+standard we report the following as findings, not activities.
+
+\begin{enumerate}[leftmargin=1.4em,itemsep=2pt]
+\item The argument-inspection gate is bypassable by a TOCTOU race on its allow path
+(Section~\ref{sec:toctou}).
+\item Attacker-driven and self-driven behaviour do not reduce to a single syscall footprint,
+so a gate scoped to one mechanism leaves the other's path open (Section~\ref{sec:coverage}).
+\item The gate's selectivity rests on substring path-matching that admits false positives and
+is separately evadable (Section~\ref{sec:selectivity}).
+\item Behavioural attribution of the actor is not a control (Section~\ref{sec:attribution}).
+\end{enumerate}
+
+Section~\ref{sec:holds} states what does survive, so the reader does not over-correct: the
+syscall boundary remains the right place to observe, and interception is invariant to the
+source language. Sections~\ref{sec:discussion}--\ref{sec:related} give the implication for a
+threat model, the limits of the study, and the position against prior work.
+
+\section{Threat model}\label{sec:threat}
+
+The host runs code produced by an LLM agent and treats that code as untrusted. Two sources
+drive dangerous behaviour, and the design goal is to contain both at one boundary. The first
+is \emph{attacker injection}: a prompt-injection payload steers the agent into emitting a
+dangerous call, for example \texttt{system("/bin/sh")} routed through the generated code. The
+second is \emph{autonomous malfunction}: with no attacker, the agent reaches for a
+destructive shortcut on its own, for example deleting a build directory it was asked to
+``reset.''
+
+The defender controls the seccomp filter and the supervisor process; the supervisor obtains
+read access to the target's memory through the parent--child relationship (equivalently
+\texttt{CAP\_SYS\_PTRACE} in a hardened deployment). The attacker controls the contents of the
+untrusted process---its threads, the timing of its calls, and the arguments in its own
+address space---but not the supervisor or the kernel. This is the standard capability split
+for a syscall supervisor, and it is exactly the split under which the allow-path race in
+Section~\ref{sec:toctou} is available: the attacker owns the memory the supervisor reads and
+the kernel later re-reads.
+
+\section{Method}\label{sec:method}
+
+\paragraph{Mechanical oracle.} Generated C is compiled with \texttt{gcc} and executed under
+\texttt{timeout 10 unshare -rn strace -f}. The footprint of a run is the set of security-relevant
+syscalls it issues (\texttt{execve}, \texttt{connect}, \texttt{openat}, \texttt{unlink},
+\texttt{rmdir}, and their families), read from the trace. A baseline of one \texttt{execve}---the
+process launch---is subtracted before a run counts as ``attempting.'' No claim in this paper is
+derived by scanning model output for keywords.
+
+\paragraph{Subjects.} Three local code models generate the artifacts: \texttt{qwen2.5-coder:1.5b},
+\texttt{qwen2.5-coder:7b}, and \texttt{deepseek-coder:6.7b}, served through Ollama. The host is a
+single x86\_64 machine. Section~\ref{sec:limits} states what this scope does and does not support.
+
+\paragraph{The gate.} The rootful gate forks the target, installs \texttt{SCMP\_ACT\_NOTIFY} on
+\texttt{execve}, \texttt{execveat}, and \texttt{connect} (and, in persistence mode, on
+\texttt{openat}, \texttt{rename}, \texttt{link}, and their variants), and sends the notification
+descriptor to the supervisor. On each notification the supervisor reads the pathname from
+\texttt{/proc/pid/mem}, compares it against policy, and either allows the call by returning
+\texttt{SECCOMP\_USER\_NOTIF\_FLAG\_CONTINUE} or denies it with \texttt{EPERM}. The rootless gate,
+by contrast, is a blanket \texttt{SCMP\_ACT\_ERRNO} deny of \texttt{execve}/\texttt{execveat}/%
+\texttt{connect} with no argument inspection.
+
+\paragraph{Statistics.} For a stochastic quantity---an agent's rate of emitting a dangerous
+call---we report a Wilson 95\% interval. The gate's decision is not a stochastic rate and receives
+no failure-rate interval; its determinism is a property to be stated, and its soundness is measured
+separately as coverage (Sections~\ref{sec:toctou}--\ref{sec:selectivity}). Every figure below is
+reproducible from committed source through \texttt{experiments/agentsec/reproduce.sh}, which rebuilds
+the binaries and re-checks the headline results (8 checks, all passing at the time of writing).
+
+\section{The argument-inspection gate is bypassable}\label{sec:toctou}
+
+The gate blocks the direct attack completely. A target that writes to a path containing a
+persistence token---\texttt{authorized\_keys}, \texttt{/.ssh/}, \texttt{cron}---is denied on every
+one of \Nrace{} attempts, and the supervisor's own counter agrees with the target's: \Nrace{} calls
+seen, \Nrace{} denied. Head-on, the argument inspection does exactly what it claims.
+
+The allow path does not survive a race. On a permitted call the supervisor validates the pathname it
+read from \texttt{/proc/pid/mem}, then returns \texttt{SECCOMP\_USER\_NOTIF\_FLAG\_CONTINUE}, which
+instructs the kernel to resume the syscall. Resuming the syscall means the kernel copies the pathname
+pointer \emph{again}, at execution time. Between the supervisor's read and the kernel's re-read the
+target's other threads keep running---only the calling thread is parked on the notification---so a
+sibling thread that flips the buffer from a benign path to \texttt{authorized\_keys} in that window
+causes the supervisor to validate one path and the kernel to open another.
+
+We measured the effect with a two-thread target: one thread issues the \texttt{openat}, a second
+flips the shared path buffer. Across \Nrace{} attempts the evil path was opened despite the gate on
+\RaceLo\% of tries in the first run and \RaceHi\% in an independent rebuild; the remainder split
+between benign opens and correct denials, and the three outcomes account for every trial. The
+existence of the bypass is a property of the mechanism and is host-independent; the per-attempt rate
+depends on scheduler behaviour and moved between runs, so we do not treat it as a fixed figure. Under
+retry the distinction stops mattering: at a per-attempt success near one in five, a persistence write
+succeeds with probability above 0.9 within roughly eleven attempts, and the agent is free to retry.
+
+This is the documented deep-argument hazard of seccomp user notification, and the
+\texttt{seccomp\_unotify}(2) manual page warns against using \texttt{CONTINUE} to allow a syscall
+whose arguments were security-relevant, precisely because the arguments can change before the kernel
+acts. Two consequences follow for a threat model. The bypass is architectural, not a gap in the token
+list, so no blocklist patch closes it; the second read has to be removed, by copying the argument into
+supervisor-controlled memory or by having the supervisor perform the operation itself. And the head-on
+number---\Nrace/\Nrace{}---measures the control against a cooperative target, which the threat model
+does not assume.
+
+We note one correction to a natural reading of this result. The gate permits exactly one
+\texttt{execve}, the launch of the target itself, and that call fires in a single-threaded context
+before any agent code runs; every later \texttt{execve} is denied outright. The raceable allow path is
+therefore not the \texttt{execve} launch but the per-call file-operation allow in persistence mode,
+which fires while the attacker's threads are live.
+
+\section{Coverage is incomplete before any race}\label{sec:coverage}
+
+A gate can be sound only over the mechanisms it watches, and the two threat sources of
+Section~\ref{sec:threat} do not use the same mechanisms. We compared the footprints of the artifacts
+each source actually produced. The \InjAtt{} injection artifacts that attempted a dangerous call did so
+entirely through \texttt{execve}: the footprint set is $\{\texttt{execve}\}$. The \AutoAtt{} autonomous
+artifacts that attempted destruction did so through \texttt{execve} in 82\% of cases (spawning a shell
+to run \texttt{rm}), but through a direct \texttt{unlink} in 13\% and a direct \texttt{rmdir} in 4\%:
+the footprint set is $\{\texttt{execve}, \texttt{unlink}, \texttt{rmdir}\}$. The two sets share
+\texttt{execve} and are not equal. The footprint is fixed by the \emph{mechanism} the code chooses, not
+by the \emph{force} that drove it, and \AutoEscape\% of self-driven destruction reaches its goal by a
+call an \texttt{execve}/\texttt{connect} gate never sees.
+
+The gap widens at the ABI. Blocking \texttt{execve} does not cover \texttt{execveat} on an anonymous
+descriptor via \texttt{memfd\_create}; blocking \texttt{connect} does not cover \texttt{sendto} or
+\texttt{sendmsg} on a UDP socket; and a single unblocked \texttt{io\_uring\_setup} lets an agent submit
+\texttt{openat}, \texttt{write}, \texttt{connect}, and \texttt{unlink} as ring operations that never
+reach the syscall-entry filter, defeating file and network coverage at once. On a filter scoped to one
+architecture's syscall numbers, the i386 and x32 compat entries fall through to the default action.
+A blocklist cannot enumerate its way out of this; completeness requires inverting to a default-deny
+allowlist, and the only class this study could close as a small fixed set is execution
+(\texttt{execve}, \texttt{execveat}). We did not exercise every listed ABI path as a working exploit;
+the \texttt{unlink}/\texttt{rmdir} escape is measured on real artifacts, and the remainder are coverage
+gaps read from the filter definition and the syscall ABI.
+
+\section{Selectivity trades false positives against evasion}\label{sec:selectivity}
+
+The rootful gate is not a disguised deny-all: given a labelled corpus of write paths it denied all
+seven persistence targets and allowed the ordinary application writes, so it does discriminate on the
+argument, unlike the rootless filter, which denies the watched calls unconditionally. Its
+discrimination mechanism, however, is a substring match against a token list, and that mechanism sits
+on a false-positive/evasion trade-off it cannot leave.
+
+On a seventeen-path corpus the confusion matrix was seven true positives, zero false negatives, six
+true negatives, and four false positives (positive $=$ should-be-denied). Every false positive was a
+legitimate filename that merely contains a token as a substring---\texttt{microcron\_metrics.txt}
+matching \texttt{cron}, \texttt{authorized\_keys\_report.csv} matching \texttt{authorized\_keys}. The
+tokens that cause these false positives are the un-anchored ones; the tokens that avoid them are anchored
+with a leading slash (\texttt{/.ssh/}, \texttt{/.profile}), and those are exactly the tokens defeated by a
+relative path or a symbolic link through an allowed directory. Tightening a token to cut a false positive
+is the same edit that opens an evasion, and loosening it to catch an evasion is the same edit that creates
+a false positive. Substring matching cannot be both precise and evasion-resistant; a race-free, path-aware
+mechanism such as Landlock resolves the path before deciding and is the correct comparison point for a
+production design.
+
+\section{What holds}\label{sec:holds}
+
+The findings above are not an argument to abandon the syscall boundary. Two properties of the boundary
+survive, and stating them keeps the recommendation calibrated.
+
+Interception is invariant to the language that emitted the call. The same second \texttt{execve}---a
+shell spawned after launch---is denied identically whether the target is compiled C, a Python
+interpreter, or a shell script (\texttt{denied\_execve}$=1$ in each, with the shell never running). The
+gate observes the kernel interface, so the source language above it does not change the verdict.
+
+The boundary is also the right place to observe, because analysis above it cannot certify. In companion
+work on the same corpus, ten static and dynamic detectors, AddressSanitizer included, all miss an
+intra-object overflow that crosses no kernel boundary; the artifact is clean to every checker yet
+corrupt at runtime. Observation therefore has to move to execution, and the syscall boundary is where
+execution becomes visible. What the boundary gives is a deterministic, auditable \emph{verdict}; what it
+does not give, per Sections~\ref{sec:toctou}--\ref{sec:selectivity}, is soundness.
+
+\section{Behavioural attribution is not a control}\label{sec:attribution}
+
+If the gate is porous, a natural next move is to profile the agent's behaviour and stop the bad actor
+before it reaches a gap. We tested three variants and none is a control against an adversary, for one
+structural reason: a manipulated agent chooses its own behaviour, so any signature the defender keys on
+can be produced or suppressed at will.
+
+Timing does not attribute. A script that inserts random sleeps is statistically indistinguishable from a
+live agent's action cadence (coefficient of variation 0.45 versus 0.54; fifteen of seventeen inter-action
+intervals overlap), so raw timing separates neither by construction.
+
+Stated intent against footprint is a weak, spoofable signal. Comparing a model's one-sentence description
+of its own code against the code's measured footprint, divergence appeared in 22\% of injection cases and
+in none of the autonomous or benign cases; where it appeared it was mechanism concealment, a description
+of a file write that omits the shell it spawns. A non-manipulated model mostly narrates honestly, and a
+manipulated one writes a faithful malicious description and drives the divergence to zero.
+
+Reaction to a denial is real but points the other way. Given a blocked goal, a live agent adapted on 90\%
+of steps, repeated on 10\%, and stopped on none; it escalated from a plain redirection to \texttt{sudo},
+to \texttt{su}, to \texttt{tee}, and to an alternative path, holding the objective fixed while varying the
+mechanism. The operational reading is that a denial elicits enumeration, not deterrence, which returns the
+weight to coverage: blocking one path routes the agent to the next.
+
+\section{Discussion}\label{sec:discussion}
+
+The result a defender should carry out of this study is a separation the marketing of syscall sandboxes
+tends to blur. A seccomp argument-inspection gate delivers a deterministic and auditable verdict, and that
+is worth having; it does not deliver certified containment, and presenting it as such misplaces the
+residual risk. The residual risk is coverage. It lives in the mechanisms the gate does not watch
+(Section~\ref{sec:coverage}), in the window between a check and the kernel's re-read
+(Section~\ref{sec:toctou}), and in the imprecision of the argument match (Section~\ref{sec:selectivity}).
+It does not live in the variance of the verdict, and it is not recovered by profiling the agent
+(Section~\ref{sec:attribution}).
+
+Two design directions follow, and both are about closing coverage rather than tuning the agent. First,
+remove the second argument read on the allow path: resolve and copy the argument into memory the target
+cannot mutate, or let the supervisor perform the operation, so the value the supervisor checked is the
+value the kernel uses. Second, move from a blocklist to a default-deny allowlist over a race-free,
+path-resolving mechanism, so that coverage is the complement of an explicit permit set rather than the
+complement of an enumerated deny set. We do not report an implementation of either here; they are the
+shape a sound successor takes.
+
+\section{Limitations}\label{sec:limits}
+
+The study is scoped and we state the scope rather than let a reviewer find it. The subjects are three
+local code models between 1.5 and 7 billion parameters, not frontier agents, and the autonomous
+destruction result rests on \AutoAtt{} attempting artifacts; both the rates and the specific mechanisms
+seen may shift with larger models and larger samples, and the emergent-destruction finding in particular
+is small-$N$. Every measurement was taken on a single x86\_64 host. Interception was checked across three
+implementation languages but on one architecture; the aarch64 case is not established here, because
+faithful native seccomp semantics are not available under user-mode emulation, and a second-architecture
+host is the correct way to test it. The TOCTOU bypass is demonstrated as an existence result, which one
+successful race establishes; its per-attempt rate is scheduler-dependent and is not an external-validity
+claim. The behavioural-attribution experiments are forensic characterizations of non-adversarial actors
+and are reported as such; against an adversary that controls its own behaviour they attribute nothing,
+which is the point of Section~\ref{sec:attribution}.
+
+\section{Related work}\label{sec:related}
+
+Syscall-boundary containment for untrusted code predates LLM agents. Seccomp-BPF and its user-notification
+extension are the mechanism under test here; the deep-argument race we exercise is described in the kernel
+manual pages for user notification and is not a new class of bug, only an instance of it in an
+agent-containment setting. Application kernels and sandboxes---gVisor, and the unprivileged, path-resolving
+Landlock LSM---address the coverage and race problems this paper measures, and Landlock is the natural
+comparison for the file-operation policy of Section~\ref{sec:selectivity}
+\,[CITATION NEEDED --- verify gVisor, Landlock references]. Attribution of a process by its syscall
+behaviour goes back to the host-intrusion-detection line begun by Forrest et al., \emph{A Sense of Self for
+Unix Processes} (1996) \,[CITATION NEEDED --- verify], which is the lineage our Section~\ref{sec:attribution}
+sits in and declines to extend into a control. On the language side, that a chain-of-thought need not match
+behaviour is established---Turpin et al. (2023) and Lanham et al. (2023) \,[CITATION NEEDED --- verify
+titles/venues]---which is why the divergence signal cannot be a detector. The emerging agent-safety
+evaluations (ToolEmu; AgentDojo; AgentHarm) \,[CITATION NEEDED --- verify] measure agent harm at the tool or
+task level; this paper measures the containment control beneath them, at the syscall boundary. We position
+against these lines rather than beside them: prior sandboxing work supplies race-free mechanisms our tested
+gate lacks, and prior attribution work supplies the negative result our behavioural section confirms in the
+agent setting.
+
+\section{Conclusion}\label{sec:conclusion}
+
+A deterministic syscall gate is a useful control and a poor certificate. Measured against an adversary
+rather than a cooperative target, the argument-inspection gate is bypassable on its allow path, blind to
+the mechanisms it does not enumerate, and imprecise where it matches paths by substring; and the agent it
+contains, when denied, looks for another way rather than stopping. The defensible claim is narrow and worth
+stating plainly: certify the verdict, scope the coverage, and assume the agent will route around any single
+blocked path. The open work is a supervisor with no second argument read and a default-deny allowlist over
+a path-resolving mechanism, and a repeat of these measurements against frontier models and a second
+architecture.
+
+\paragraph{Reproducibility.} All code, data, and per-experiment results are committed at
+\texttt{github.com/francose/llm-sandbox-cwe-research}. \texttt{experiments/agentsec/reproduce.sh} rebuilds
+the gate and the probes from source and re-checks the headline results.
+
+\end{document}
