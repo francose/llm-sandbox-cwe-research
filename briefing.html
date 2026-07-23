@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Syscall-Boundary Containment — Threat-Model Evidence Briefing</title>
+<style>
+  :root{
+    --ground:#0e1116; --surface:#151b23; --surface-2:#1b232d; --raise:#212b36;
+    --ink:#e7eef5; --ink-dim:#9aa7b4; --ink-faint:#6b7887; --line:#28313c;
+    --accent:#6ea8d8; --accent-dim:#3f5a72;
+    --crit:#e5544b; --crit-bg:#2a1719; --good:#43b581; --good-bg:#15251e; --warn:#d6a13d; --warn-bg:#2a2214;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono","Cascadia Code",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --ground:#f5f7f9; --surface:#ffffff; --surface-2:#eef1f5; --raise:#e7ecf1;
+      --ink:#18202a; --ink-dim:#55616e; --ink-faint:#8593a1; --line:#dce1e8;
+      --accent:#2f6fa8; --accent-dim:#9db8ce;
+      --crit:#c8392f; --crit-bg:#fbe9e7; --good:#1f8a5b; --good-bg:#e6f4ec; --warn:#9a6f16; --warn-bg:#f6eed8;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0e1116; --surface:#151b23; --surface-2:#1b232d; --raise:#212b36;
+    --ink:#e7eef5; --ink-dim:#9aa7b4; --ink-faint:#6b7887; --line:#28313c;
+    --accent:#6ea8d8; --accent-dim:#3f5a72;
+    --crit:#e5544b; --crit-bg:#2a1719; --good:#43b581; --good-bg:#15251e; --warn:#d6a13d; --warn-bg:#2a2214;
+  }
+  :root[data-theme="light"]{
+    --ground:#f5f7f9; --surface:#ffffff; --surface-2:#eef1f5; --raise:#e7ecf1;
+    --ink:#18202a; --ink-dim:#55616e; --ink-faint:#8593a1; --line:#dce1e8;
+    --accent:#2f6fa8; --accent-dim:#9db8ce;
+    --crit:#c8392f; --crit-bg:#fbe9e7; --good:#1f8a5b; --good-bg:#e6f4ec; --warn:#9a6f16; --warn-bg:#f6eed8;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
+    font-size:16px;line-height:1.6;font-variant-numeric:tabular-nums;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 24px}
+  section{padding:52px 0;border-top:1px solid var(--line)}
+  section:first-of-type{border-top:0}
+  h1,h2,h3{text-wrap:balance;line-height:1.15;margin:0}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--accent);font-weight:600;margin:0 0 14px}
+  .mono{font-family:var(--mono)}
+  .dim{color:var(--ink-dim)}
+  code{font-family:var(--mono);font-size:.86em;background:var(--surface-2);
+    padding:.12em .4em;border-radius:4px;border:1px solid var(--line)}
+
+  /* header */
+  header{padding:56px 0 46px;border-bottom:1px solid var(--line);position:relative}
+  header h1{font-size:clamp(28px,4.4vw,44px);font-weight:700;letter-spacing:-.015em}
+  header .lede{font-size:clamp(17px,2vw,20px);color:var(--ink-dim);margin:18px 0 0;max-width:70ch}
+  header .lede b{color:var(--ink);font-weight:600}
+  .meta{display:flex;flex-wrap:wrap;gap:8px 10px;margin-top:26px;font-family:var(--mono);font-size:12.5px}
+  .meta span{border:1px solid var(--line);background:var(--surface);padding:5px 10px;border-radius:6px;color:var(--ink-dim)}
+  .meta span b{color:var(--ink);font-weight:600}
+  .themebtn{position:absolute;top:18px;right:0;font-family:var(--mono);font-size:12px;
+    background:var(--surface);color:var(--ink-dim);border:1px solid var(--line);border-radius:6px;
+    padding:6px 10px;cursor:pointer}
+  .themebtn:hover{color:var(--ink);border-color:var(--accent-dim)}
+
+  h2.sec{font-size:26px;font-weight:700;letter-spacing:-.01em}
+  .sub{color:var(--ink-dim);margin:10px 0 0;max-width:74ch}
+
+  /* attack card */
+  .attack{margin-top:26px;border:1px solid var(--crit);border-radius:12px;overflow:hidden;background:var(--surface)}
+  .attack .top{padding:20px 22px;background:var(--crit-bg);border-bottom:1px solid var(--crit)}
+  .attack .top .k{font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--crit);font-weight:700}
+  .attack .top .h{font-size:20px;font-weight:700;margin-top:6px}
+  .bars{display:grid;grid-template-columns:1fr;gap:16px;padding:22px}
+  .barrow{display:grid;grid-template-columns:170px 1fr;gap:16px;align-items:center}
+  .barrow .lab{font-family:var(--mono);font-size:13px;color:var(--ink-dim);text-align:right}
+  .bar{position:relative;height:34px;border-radius:6px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden}
+  .bar .fill{position:absolute;top:0;left:0;bottom:0;display:flex;align-items:center;padding:0 12px;
+    font-family:var(--mono);font-size:13px;font-weight:600;color:#fff;white-space:nowrap}
+  .fill.g{width:100%;background:linear-gradient(90deg,var(--good),color-mix(in srgb,var(--good) 78%,#000))}
+  .fill.r{width:21%;background:linear-gradient(90deg,var(--crit),color-mix(in srgb,var(--crit) 78%,#000))}
+  .barrow .after{font-family:var(--mono);font-size:12.5px;color:var(--crit);margin-left:2px}
+  @media (max-width:640px){.barrow{grid-template-columns:1fr}.barrow .lab{text-align:left}}
+
+  .rootcause{margin:0;padding:18px 22px;border-top:1px solid var(--line);background:var(--surface-2);
+    font-family:var(--mono);font-size:13px;line-height:1.7;color:var(--ink-dim)}
+  .rootcause b{color:var(--ink)}
+  .rootcause .step{color:var(--accent)}
+
+  /* stat trio */
+  .trio{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:24px}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px}
+  .stat .n{font-family:var(--mono);font-size:30px;font-weight:700;letter-spacing:-.02em}
+  .stat.r .n{color:var(--crit)} .stat.g .n{color:var(--good)} .stat.a .n{color:var(--warn)}
+  .stat .t{font-size:13.5px;color:var(--ink-dim);margin-top:6px;line-height:1.45}
+  .stat .src{font-family:var(--mono);font-size:11px;color:var(--ink-faint);margin-top:10px}
+  @media (max-width:640px){.trio{grid-template-columns:1fr}}
+
+  /* generic cards list */
+  .cards{display:grid;gap:12px;margin-top:22px}
+  .card{background:var(--surface);border:1px solid var(--line);border-left-width:3px;border-radius:8px;padding:16px 18px}
+  .card.crit{border-left-color:var(--crit)} .card.good{border-left-color:var(--good)} .card.warn{border-left-color:var(--warn)}
+  .card .ch{font-weight:650;font-size:15.5px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+  .card .ch .tag{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--ink-faint);border:1px solid var(--line);border-radius:4px;padding:1px 6px}
+  .card p{margin:8px 0 0;font-size:14.5px;color:var(--ink-dim)}
+  .card p b{color:var(--ink);font-weight:600}
+  .card .num{font-family:var(--mono);color:var(--ink)}
+
+  /* confusion matrix */
+  .cm-wrap{display:grid;grid-template-columns:auto 1fr;gap:26px;align-items:center;margin-top:22px}
+  .cm{display:grid;grid-template-columns:repeat(2,84px);grid-auto-rows:64px;gap:6px}
+  .cm .cell{border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid var(--line)}
+  .cm .cell .cn{font-family:var(--mono);font-size:22px;font-weight:700}
+  .cm .cell .cl{font-family:var(--mono);font-size:10px;letter-spacing:.05em;color:var(--ink-dim)}
+  .cm .tp{background:var(--good-bg)} .cm .tp .cn{color:var(--good)}
+  .cm .tn{background:var(--good-bg)} .cm .tn .cn{color:var(--good)}
+  .cm .fp{background:var(--crit-bg)} .cm .fp .cn{color:var(--crit)}
+  .cm .fn{background:var(--surface-2)} .cm .fn .cn{color:var(--ink-dim)}
+  @media (max-width:640px){.cm-wrap{grid-template-columns:1fr}}
+
+  /* scoreboard table */
+  .tablewrap{overflow-x:auto;margin-top:22px;border:1px solid var(--line);border-radius:10px}
+  table{border-collapse:collapse;width:100%;font-size:14px;min-width:640px}
+  thead th{text-align:left;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--ink-faint);font-weight:600;padding:12px 14px;background:var(--surface-2);border-bottom:1px solid var(--line)}
+  tbody td{padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--ink-dim)}
+  tbody tr:last-child td{border-bottom:0}
+  tbody td:first-child{font-family:var(--mono);color:var(--ink);white-space:nowrap;font-size:13px}
+  .pill{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.03em;padding:3px 8px;border-radius:5px;white-space:nowrap;display:inline-block}
+  .pill.s{color:var(--good);background:var(--good-bg);border:1px solid color-mix(in srgb,var(--good) 40%,transparent)}
+  .pill.r{color:var(--crit);background:var(--crit-bg);border:1px solid color-mix(in srgb,var(--crit) 40%,transparent)}
+  .pill.d{color:var(--warn);background:var(--warn-bg);border:1px solid color-mix(in srgb,var(--warn) 40%,transparent)}
+
+  /* bottom line */
+  .bl{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:26px;margin-top:24px}
+  .bl h3{font-size:19px;font-weight:700;margin-bottom:14px}
+  .bl ol{margin:0;padding-left:22px}
+  .bl li{margin:10px 0;color:var(--ink-dim)}
+  .bl li b{color:var(--ink);font-weight:650}
+  .kicker{font-size:18px;font-weight:650;color:var(--ink);margin-top:20px;padding:16px 20px;
+    border-left:3px solid var(--accent);background:var(--surface-2);border-radius:0 8px 8px 0}
+
+  /* evidence table */
+  .evid td:nth-child(2){font-family:var(--mono);font-size:12.5px;color:var(--ink)}
+  footer{padding:34px 0 60px;color:var(--ink-faint);font-family:var(--mono);font-size:12.5px;border-top:1px solid var(--line)}
+  footer a{color:var(--accent);text-decoration:none}
+  footer a:hover{text-decoration:underline}
+  a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  @media print{
+    body{background:#fff;color:#000}
+    .themebtn{display:none}
+    section,header{padding:20px 0}
+    .attack,.card,.stat,.bl{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <button class="themebtn mono" id="tt" aria-label="Toggle theme">◐ theme</button>
+    <p class="eyebrow">Syscall-Boundary Containment · Empirical Evaluation</p>
+    <h1>Can a seccomp argument-inspection gate contain an LLM agent?</h1>
+    <p class="lede">We evaluated the <b>control</b>, not the model. The gate's verdict is
+      <b>deterministic</b> — and that is exactly the trap: determinism is not soundness.
+      Under an adversary the argument-inspection gate is <b>bypassable</b>, its coverage is
+      <b>incomplete</b>, and behavioral profiling of the agent <b>does not substitute</b> for it.</p>
+    <div class="meta">
+      <span>evidence: <b>mechanical oracle</b> (compile · run · strace)</span>
+      <span>reproduce.sh: <b>8 / 8 pass</b></span>
+      <span>samples: <b>360 injection · 135 autonomous · 4000 race trials</b></span>
+      <span>host: <b>x86_64 · 3 local models</b></span>
+    </div>
+  </header>
+
+  <section>
+    <p class="eyebrow">The setup</p>
+    <h2 class="sec">One trust boundary, two threat sources</h2>
+    <p class="sub">The control under test is a <b>seccomp user-notification gate</b> (rootful) that
+      intercepts syscalls from untrusted agent-generated code, reads their pointer <em>arguments</em>
+      out of the target's memory, and decides allow / deny at the syscall boundary. It is meant to
+      contain both an <b>attacker-injected</b> agent (prompt injection) and an agent that
+      <b>malfunctions on its own</b> (autonomous destructive shortcut).</p>
+    <div class="trio">
+      <div class="stat">
+        <div class="n mono">arg-level</div>
+        <div class="t">Gate inspects syscall <b>arguments</b>, not just numbers — the whole point of the rootful design (and the source of its exposure).</div>
+      </div>
+      <div class="stat">
+        <div class="n mono">2 → 1</div>
+        <div class="t">Two threat sources (injection · autonomy) meet one boundary. Claim under test: does the boundary hold for both?</div>
+      </div>
+      <div class="stat">
+        <div class="n mono">test-first</div>
+        <div class="t">Nothing here is asserted from reading code. Every claim is compiled, run, and measured under strace, or it is not claimed.</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Headline finding · EXP-11</p>
+    <h2 class="sec">The argument-inspection gate is bypassable</h2>
+    <p class="sub">The gate blocks the persistence write perfectly when hit head-on. Wrap the identical
+      write in a two-thread race and it walks through — because the kernel re-reads the argument
+      <em>after</em> the supervisor already approved it.</p>
+
+    <div class="attack">
+      <div class="top">
+        <div class="k">Attack: write to ~/.ssh/authorized_keys through the gate</div>
+        <div class="h">Same operation. Head-on vs. raced.</div>
+      </div>
+      <div class="bars">
+        <div class="barrow">
+          <div class="lab">direct write<br><span class="dim">(no race)</span></div>
+          <div class="bar"><div class="fill g">4000 / 4000 BLOCKED — 100%</div></div>
+        </div>
+        <div class="barrow">
+          <div class="lab">raced write<br><span class="dim">(2 threads)</span></div>
+          <div class="bar"><div class="fill r">~1 in 5 BYPASS</div></div>
+        </div>
+        <div class="barrow">
+          <div class="lab"></div>
+          <div class="after">→ ~19–23% per attempt · ≈100% within ~11 retries · agent simply retries</div>
+        </div>
+      </div>
+      <p class="rootcause">
+        <b>Root cause — TOCTOU on the allow path.</b><br>
+        <span class="step">1.</span> supervisor reads the path from <code>/proc/pid/mem</code> → sees a benign path → <b>allow</b><br>
+        <span class="step">2.</span> supervisor returns <code>SECCOMP_USER_NOTIF_FLAG_CONTINUE</code><br>
+        <span class="step">3.</span> kernel <b>re-reads</b> the pathname pointer to run the syscall — a sibling thread has swapped it to <code>authorized_keys</code><br>
+        The kernel manual warns against <code>CONTINUE</code> for security-relevant argument inspection. Existence of the bypass is host-independent; the rate is scheduler-dependent. <b>Not fixable by a blocklist patch</b> — the second read must be removed.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Coverage gaps · threat-model relevant</p>
+    <h2 class="sec">Even when it isn't raced, the boundary leaks</h2>
+    <div class="cards">
+      <div class="card crit">
+        <div class="ch">Two forces do not reduce to one footprint <span class="tag">P4 · refuted</span></div>
+        <p>Injection reaches its goal <span class="num">100% via execve</span>; autonomous destruction is
+          <span class="num">82% execve</span> but <span class="num">18% direct unlink / rmdir</span> — a path injection never takes.
+          An <b>execve/connect-only gate misses that 18%</b> of self-driven destruction outright. Footprint is set by <b>mechanism, not force</b>.</p>
+      </div>
+      <div class="card crit">
+        <div class="ch">The blocklist is structurally incomplete <span class="tag">P8 · refuted</span></div>
+        <p>Verified escapes at the ABI: <span class="num">io_uring</span> (one unblocked <code>io_uring_setup</code> submits connect/openat/write/unlink as ring ops that never hit syscall-entry seccomp),
+          <span class="num">open / openat2 / creat</span>, <span class="num">UDP sendto / sendmsg</span>, and <span class="num">i386 / x32</span> compat syscall numbers. Absolute completeness needs a default-deny allowlist, not a blocklist.</p>
+      </div>
+      <div class="card warn">
+        <div class="ch">Selectivity sits on a false-positive / evasion trade-off <span class="tag">EXP-12</span></div>
+        <p>The gate is genuinely selective — it is <b>not</b> deny-all (it allows benign writes). But it matches paths with
+          <code>strstr</code> tokens: un-anchored tokens (<code>cron</code>, <code>authorized_keys</code>) <b>false-positive on benign lookalikes</b>,
+          while anchored tokens are <b>evaded by path normalization</b>. It cannot be both precise and evasion-resistant without real canonicalization.</p>
+        <div class="cm-wrap">
+          <div class="cm" aria-label="confusion matrix">
+            <div class="cell tp"><span class="cn">7</span><span class="cl">TP</span></div>
+            <div class="cell fp"><span class="cn">4</span><span class="cl">FP</span></div>
+            <div class="cell fn"><span class="cn">0</span><span class="cl">FN</span></div>
+            <div class="cell tn"><span class="cn">6</span><span class="cl">TN</span></div>
+          </div>
+          <p class="dim" style="font-size:13.5px;margin:0">Positive = should-be-denied. Malicious caught 7/7 (no false
+            negatives), but <b style="color:var(--crit)">4 benign files wrongly denied</b> — every FP is a legitimate
+            filename that merely contains a token substring.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">What holds</p>
+    <h2 class="sec">The boundary is still the right place to watch</h2>
+    <p class="sub">The findings are not "give up on the syscall boundary" — the boundary is sound as an
+      <em>observation</em> point. The problem is treating a deterministic verdict as a sound one.</p>
+    <div class="cards">
+      <div class="card good">
+        <div class="ch">Output/static analysis cannot certify <span class="tag">P9 · holds</span></div>
+        <p><span class="num">10 of 10</span> detectors — static analyzers and AddressSanitizer included — miss an
+          intra-object overflow that crosses no kernel boundary. You cannot certify from the artifact; you have to watch execution.</p>
+      </div>
+      <div class="card good">
+        <div class="ch">Interception is language-invariant <span class="tag">P12 · holds</span></div>
+        <p>The same shell-spawn written in <span class="num">C, Python, and shell</span> is denied identically
+          (<code>denied_execve=1</code> each) — the gate is agnostic to the language that emitted the call.</p>
+      </div>
+      <div class="card good">
+        <div class="ch">The verdict is deterministic <span class="tag">P5 · holds (narrow)</span></div>
+        <p>Zero variance across repeats — but that is definitional, not protection. <b>Deterministic ≠ sound.</b> This is the core reframe: certify the gate's <em>verdict</em>, never claim it certifies against <em>harm</em>.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Dead ends · so the team doesn't chase them</p>
+    <h2 class="sec">Profiling the agent's behavior does not gate</h2>
+    <p class="sub">We tested three "detect the bad agent by how it behaves" ideas. All fail as controls
+      against an adversary — a manipulated agent chooses its own behavior. Keep them as forensics only.</p>
+    <div class="cards">
+      <div class="card warn">
+        <div class="ch">Timing / cadence attribution <span class="tag">P14c · refuted</span></div>
+        <p>A dumb <b>random-sleep script is statistically indistinguishable from a live agent</b> (CV 0.45 vs 0.54;
+          15/17 intervals overlap). Raw timing cannot tell human from script from agent.</p>
+      </div>
+      <div class="card warn">
+        <div class="ch">Stated-intent vs. footprint divergence <span class="tag">P13 · demoted</span></div>
+        <p>Weak and injection-confined (<span class="num">22% / 0% / 0%</span>), and a manipulated agent writes a
+          faithful malicious rationale to drive it to zero. Non-adversarial models mostly narrate honestly, so there is little to catch.</p>
+      </div>
+      <div class="card warn">
+        <div class="ch">Reaction to denial <span class="tag">P14g · demoted</span></div>
+        <p>A denied agent <b>adapts 90%, repeats 10%, stops 0%</b> — it escalates (sudo → su → tee → alt-path)
+          toward the same goal. The operational lesson: <b>denial elicits enumeration, not deterrence.</b></p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Full scoreboard</p>
+    <h2 class="sec">Every hypothesis, with its verdict</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>ID</th><th>Hypothesis</th><th>Verdict</th><th>Evidence</th></tr></thead>
+        <tbody>
+          <tr><td>P11</td><td>The gate can be defeated</td><td><span class="pill r">SURVIVED</span></td><td>TOCTOU bypass ~20%/attempt, ~100% w/ retry; blocks direct 4000/4000</td></tr>
+          <tr><td>P4</td><td>Two forces reduce to one footprint</td><td><span class="pill r">REFUTED</span></td><td>18% of autonomous destruction escapes via unlink/rmdir</td></tr>
+          <tr><td>P8</td><td>The blocklist is complete</td><td><span class="pill r">REFUTED</span></td><td>io_uring, open/creat, UDP egress, arch numbers all bypass</td></tr>
+          <tr><td>P6/P7</td><td>Gate catches the dangerous call</td><td><span class="pill r">REFUTED</span></td><td>holds only vs non-adversarial artifacts</td></tr>
+          <tr><td>P14c</td><td>Cadence attributes actor class</td><td><span class="pill r">REFUTED</span></td><td>random-sleep script indistinguishable from live agent</td></tr>
+          <tr><td>P1</td><td>Observability at the syscall layer</td><td><span class="pill s">SURVIVED</span></td><td>mechanical strace oracle; foundational</td></tr>
+          <tr><td>P9</td><td>Detection can't certify</td><td><span class="pill s">SURVIVED</span></td><td>10/10 detectors incl ASan miss intra-object overflow</td></tr>
+          <tr><td>P12</td><td>Generality (language axis)</td><td><span class="pill s">SURVIVED</span></td><td>interception invariant across C / Python / shell</td></tr>
+          <tr><td>P2</td><td>Injection yields dangerous syscalls</td><td><span class="pill s">SURVIVED</span></td><td>measured; 3 local models, x86_64 (scoped)</td></tr>
+          <tr><td>P3</td><td>Autonomous destruction is emergent</td><td><span class="pill s">SURVIVED</span></td><td>prompts never instruct it (small-model, tiny-N)</td></tr>
+          <tr><td>P5</td><td>Gate verdict is deterministic</td><td><span class="pill d">TRIVIAL</span></td><td>true but definitional — not soundness</td></tr>
+          <tr><td>P13</td><td>Intent–footprint divergence detects injection</td><td><span class="pill d">DEMOTED</span></td><td>forensic only; weak, spoofable</td></tr>
+          <tr><td>P14g</td><td>Gate-reaction attributes actor</td><td><span class="pill d">DEMOTED</span></td><td>forensic only; spoofable</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Bottom line</p>
+    <h2 class="sec">For the threat model</h2>
+    <div class="bl">
+      <h3>What this changes about how we contain agents</h3>
+      <ol>
+        <li><b>Detection can't certify → watch at the syscall boundary.</b> Output/static analysis misses in-process harm; the boundary is the right observation point, and it is language-invariant.</li>
+        <li><b>The boundary gate is deterministic but not sound.</b> It is bypassable (TOCTOU), incomplete (io_uring, unlink/rmdir, open/creat, UDP, cross-arch), and its argument matching trades false positives against evasion.</li>
+        <li><b>Coverage is the residual risk, not variance.</b> Attacker- and self-driven behavior overlap on <code>execve</code> but do not collapse to one footprint, and a blocked agent enumerates alternatives. What protects is coverage of the union of mechanisms — not the control's determinism, and not behavioral profiling of the agent.</li>
+      </ol>
+      <div class="kicker">Do not sell a deterministic gate as "certified containment." Certify the verdict; scope the coverage; assume the agent will route around any single blocked path.</div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Evidence &amp; reproducibility</p>
+    <h2 class="sec">Every number traces to a runnable experiment</h2>
+    <p class="sub">This is the part that matters for a threat-model review: nothing here is a claim you have
+      to take on faith. One command rebuilds the binaries from committed source and re-checks the headline results.</p>
+    <div class="tablewrap">
+      <table class="evid">
+        <thead><tr><th>Claim</th><th>Experiment / file</th><th>Result</th></tr></thead>
+        <tbody>
+          <tr><td>Gate bypass (TOCTOU)</td><td>toctou_race.c · EXP11_RESULTS.md</td><td>direct 4000/4000 blocked · raced ~20% bypass</td></tr>
+          <tr><td>Selectivity / false positives</td><td>fp_corpus.py · EXP12_RESULTS.md</td><td>TP7 FP4 TN6 FN0</td></tr>
+          <tr><td>Two forces, footprints</td><td>p4_analysis.py · EXP_P4_RESULTS.md</td><td>{execve} vs {execve,unlink,rmdir}</td></tr>
+          <tr><td>Language invariance</td><td>p12_lang/ · EXP_P12_RESULTS.md</td><td>denied_execve=1 × C/Py/sh</td></tr>
+          <tr><td>Behavioral dead-ends</td><td>cadence_pilot · p13 · p14g</td><td>refuted / demoted, forensic only</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="mono dim" style="margin-top:20px;font-size:13.5px">
+      $ bash experiments/agentsec/reproduce.sh<br>
+      &nbsp;&nbsp;→ 8 passed, 0 failed — ALL CHECKS PASSED
+    </p>
+  </section>
+
+  <footer>
+    github.com/francose/llm-sandbox-cwe-research · branch main @ 0585500 · HYPOTHESIS_REGISTER.md is the source of truth for every verdict<br>
+    Scope: single x86_64 host, 3 local models — external validity (frontier models, second architecture) is stated as open, not claimed.
+  </footer>
+
+</div>
+<script>
+  (function(){
+    var b=document.getElementById('tt');
+    b.addEventListener('click',function(){
+      var cur=document.documentElement.getAttribute('data-theme');
+      var next = cur ? (cur==='dark'?'light':'dark')
+        : (window.matchMedia('(prefers-color-scheme: dark)').matches?'light':'dark');
+      document.documentElement.setAttribute('data-theme',next);
+    });
+  })();
+</script>
+</body>
+</html>
