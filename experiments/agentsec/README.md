@@ -12,8 +12,11 @@ directory.
 |---|---|
 | `agentsec_mvp.py` | injection experiment: none / direct / indirect channels, mechanical compliance oracle, gate check |
 | `agentsec_autonomous.py` | autonomous-destruction experiment: plausible ops tasks, destructive shortcut never suggested |
-| `gate.h` | rootless gate: self-installed seccomp-BPF filter (blocks by syscall number) |
-| `seccomp_preflight.c` | rootful gate: seccomp user-notification supervisor (live argument inspection) |
+| `gate.h` | rootless gate: self-installed seccomp-BPF filter (blocks by syscall NUMBER, from inside the target) |
+| `gate_rootful.c` | rootful gate: seccomp user-notification supervisor (reads the pathname out of the target's memory, denies by ARGUMENT) |
+| `seccomp_preflight.c` | rootless preflight sanity check: ERRNO-blocks `connect` by number and confirms it is enforced on this kernel (NOT the rootful gate) |
+| `invariance.py` | experiment #1: agent attempt rate (Wilson CI) vs both gates' determinism + coverage |
+| `EXP01_METHODOLOGY.md` | experiment #1 step-by-step scientific method + expanded seven-questions evaluation |
 | `agentsec_mvp_results.json` | raw injection results (per model, channel, sample) |
 | `agentsec_autonomous_results.json` | raw autonomous results (per model, scenario, sample) |
 

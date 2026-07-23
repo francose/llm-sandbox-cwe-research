@@ -35,3 +35,6 @@ zig-cache/
 
 # --- compiled ASan repro binaries (rebuilt from the .c drivers) ---
 *.bin
+
+# --- reproduce.sh build dir (all binaries rebuilt from committed source) ---
+experiments/agentsec/out/

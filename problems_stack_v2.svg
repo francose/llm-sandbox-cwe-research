@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="900" viewBox="0 0 1180 900" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <rect width="1180" height="900" fill="#ffffff"/>
+  <defs>
+    <linearGradient id="cert2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#c62828"/><stop offset="52%" stop-color="#f9a825"/>
+      <stop offset="80%" stop-color="#2e7d32"/><stop offset="100%" stop-color="#455a64"/>
+    </linearGradient>
+    <marker id="a2" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#555"/></marker>
+    <marker id="av" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#7b1fa2"/></marker>
+  </defs>
+
+  <text x="500" y="40" text-anchor="middle" font-size="21" font-weight="700" fill="#111">The stack v2: observe at the top, enforce at the bottom, score the gap</text>
+  <text x="500" y="62" text-anchor="middle" font-size="12.5" fill="#666">The gate stays the trust boundary. The chain of thought is telemetry. Their divergence is a new detector. (violet = new in v2)</text>
+
+  <!-- certifiability gradient -->
+  <rect x="24" y="120" width="24" height="590" rx="6" fill="url(#cert2)"/>
+  <text x="36" y="138" transform="rotate(90 36 138)" font-size="11" fill="#fff" font-weight="700">STOCHASTIC — can't certify</text>
+  <text x="36" y="600" transform="rotate(90 36 600)" font-size="11" fill="#fff" font-weight="700">DETERMINISTIC — certifiable</text>
+
+  <!-- BAND 1 Intent -->
+  <rect x="66" y="120" width="620" height="120" rx="8" fill="#ef5350" fill-opacity="0.13" stroke="#c62828" stroke-width="1.5"/>
+  <text x="84" y="150" font-size="16" font-weight="700" fill="#c62828">INTENT / REASONING</text>
+  <text x="84" y="169" font-size="11.5" fill="#8e2020">the prompt, the decision — "why" · stochastic</text>
+  <g font-size="12" fill="#111">
+    <rect x="360" y="132" width="96" height="27" rx="13" fill="#fff" stroke="#c62828"/><text x="408" y="150" text-anchor="middle" font-weight="600">P2 Injection</text>
+    <rect x="466" y="132" width="118" height="27" rx="13" fill="#fff" stroke="#c62828"/><text x="525" y="150" text-anchor="middle" font-weight="600">P3 Autonomous</text>
+    <rect x="360" y="167" width="224" height="27" rx="13" fill="#fff" stroke="#c62828" stroke-dasharray="4 3"/><text x="472" y="185" text-anchor="middle">P4 two forces DIVERGE here</text>
+    <text x="360" y="222" font-size="11.5" fill="#7b1fa2" font-weight="700">↳ chain of thought is observable at this layer</text>
+  </g>
+
+  <!-- BAND 2 Output -->
+  <rect x="66" y="248" width="620" height="86" rx="8" fill="#f9a825" fill-opacity="0.15" stroke="#e08e00" stroke-width="1.5"/>
+  <text x="84" y="278" font-size="16" font-weight="700" fill="#b06f00">OUTPUT / ARTIFACT</text>
+  <text x="84" y="297" font-size="11.5" fill="#8a5a00">the code it emits · inspectable but leaky</text>
+  <rect x="360" y="272" width="300" height="27" rx="13" fill="#fff" stroke="#e08e00"/><text x="510" y="290" text-anchor="middle" font-size="12" font-weight="600">P9 Detectors miss it (static / ASan fail)</text>
+
+  <!-- BAND 3 Execution -->
+  <rect x="66" y="342" width="620" height="116" rx="8" fill="#42a5f5" fill-opacity="0.13" stroke="#1565c0" stroke-width="1.5"/>
+  <text x="84" y="372" font-size="16" font-weight="700" fill="#1565c0">EXECUTION / PROCESS</text>
+  <text x="84" y="391" font-size="11.5" fill="#0d4a8a">the running process · observable footprint</text>
+  <g font-size="12" fill="#111">
+    <rect x="360" y="354" width="130" height="27" rx="13" fill="#fff" stroke="#1565c0"/><text x="425" y="372" text-anchor="middle" font-weight="600">P1 Observability</text>
+    <rect x="500" y="354" width="140" height="27" rx="13" fill="#fff" stroke="#1565c0"/><text x="570" y="372" text-anchor="middle" font-weight="600">P10 Attacker view</text>
+    <rect x="360" y="389" width="256" height="27" rx="13" fill="#fff" stroke="#1565c0" stroke-dasharray="4 3"/><text x="488" y="407" text-anchor="middle">P4 → ONE footprint (forces converge)</text>
+    <text x="360" y="444" font-size="11.5" fill="#7b1fa2" font-weight="700">↳ syscall footprint = the ground truth of what it DID</text>
+  </g>
+
+  <!-- BAND 4 Gate (highlighted) -->
+  <rect x="66" y="466" width="620" height="150" rx="8" fill="#66bb6a" fill-opacity="0.18" stroke="#2e7d32" stroke-width="3"/>
+  <text x="84" y="496" font-size="16" font-weight="800" fill="#1b5e20">THE GATE / SYSCALL BOUNDARY</text>
+  <text x="84" y="514" font-size="11.5" fill="#1b5e20">seccomp · rootless (number) / rootful (argument) · the one certifiable control</text>
+  <g font-size="11.5" fill="#111">
+    <rect x="84" y="528" width="112" height="26" rx="13" fill="#fff" stroke="#2e7d32"/><text x="140" y="545" text-anchor="middle" font-weight="600">P5 Certifiability</text>
+    <rect x="202" y="528" width="108" height="26" rx="13" fill="#fff" stroke="#2e7d32"/><text x="256" y="545" text-anchor="middle" font-weight="600">P6 Interception</text>
+    <rect x="316" y="528" width="150" height="26" rx="13" fill="#fff" stroke="#2e7d32"/><text x="391" y="545" text-anchor="middle" font-weight="600">P7 Rootless vs rootful</text>
+    <rect x="472" y="528" width="118" height="26" rx="13" fill="#fff" stroke="#2e7d32"/><text x="531" y="545" text-anchor="middle" font-weight="600">P8 Completeness</text>
+    <rect x="596" y="528" width="82" height="26" rx="13" fill="#fff" stroke="#b71c1c"/><text x="637" y="545" text-anchor="middle" font-weight="600" fill="#b71c1c">P11 Defeat</text>
+  </g>
+  <text x="84" y="578" font-size="11.5" fill="#7b1fa2" font-weight="700">↳ decision space is richer than binary [NEW]:</text>
+  <g font-size="11" fill="#4a148c">
+    <rect x="360" y="566" width="104" height="24" rx="12" fill="#f3e5f5" stroke="#7b1fa2"/><text x="412" y="582" text-anchor="middle">argument-graded</text>
+    <rect x="470" y="566" width="132" height="24" rx="12" fill="#f3e5f5" stroke="#7b1fa2"/><text x="536" y="582" text-anchor="middle">sequence (circuit-breaker)</text>
+    <rect x="360" y="592" width="242" height="20" rx="10" fill="#f3e5f5" stroke="#7b1fa2"/><text x="481" y="606" text-anchor="middle">HOLD &amp; escalate (ask) — not just allow/deny</text>
+  </g>
+
+  <!-- BAND 5 Kernel -->
+  <rect x="66" y="624" width="620" height="66" rx="8" fill="#455a64" fill-opacity="0.12" stroke="#455a64" stroke-width="1.5"/>
+  <text x="84" y="652" font-size="16" font-weight="700" fill="#37474f">KERNEL / OS</text>
+  <text x="84" y="671" font-size="11.5" fill="#b71c1c" font-style="italic">where the harm lands if the gate does not stop it</text>
+
+  <!-- ===== v2 architecture (right) ===== -->
+  <!-- CoT tap -->
+  <path d="M686,180 L744,180" stroke="#7b1fa2" stroke-width="1.6" marker-end="url(#av)"/>
+  <rect x="746" y="140" width="250" height="80" rx="10" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2"/>
+  <text x="871" y="162" text-anchor="middle" font-size="13" font-weight="800" fill="#4a148c">READ THE CHAIN OF THOUGHT</text>
+  <text x="871" y="181" text-anchor="middle" font-size="11" fill="#4a148c">observation tap #1 · rich, early</text>
+  <text x="871" y="197" text-anchor="middle" font-size="11" font-weight="700" fill="#b71c1c">UNTRUSTED — telemetry, not a boundary</text>
+  <text x="871" y="212" text-anchor="middle" font-size="10.5" fill="#7b1fa2">[NEW]</text>
+
+  <!-- Footprint tap -->
+  <path d="M686,410 L744,410" stroke="#7b1fa2" stroke-width="1.6" marker-end="url(#av)"/>
+  <rect x="746" y="378" width="250" height="72" rx="10" fill="#e8f5e9" stroke="#2e7d32" stroke-width="2"/>
+  <text x="871" y="400" text-anchor="middle" font-size="13" font-weight="800" fill="#1b5e20">SYSCALL FOOTPRINT</text>
+  <text x="871" y="418" text-anchor="middle" font-size="11" fill="#1b5e20">observation tap #2 · ground truth</text>
+  <text x="871" y="434" text-anchor="middle" font-size="11" font-weight="700" fill="#1b5e20">what it actually DID (trusted)</text>
+
+  <!-- P14 chronological / actor-attribution tap (reads the TIMING of the footprint) -->
+  <path d="M871,450 L871,461" stroke="#7b1fa2" stroke-width="1.6" marker-end="url(#av)"/>
+  <rect x="746" y="463" width="250" height="50" rx="10" fill="#ede7f6" stroke="#4527a0" stroke-width="2"/>
+  <text x="871" y="482" text-anchor="middle" font-size="12" font-weight="800" fill="#311b92">P14 · CHRONOLOGICAL FINGERPRINT</text>
+  <text x="871" y="497" text-anchor="middle" font-size="9.5" fill="#4527a0">cadence / intervals / ordering of the same footprint</text>
+  <text x="871" y="509" text-anchor="middle" font-size="10" font-weight="700" fill="#b71c1c">human vs automation vs agent  [NEW]</text>
+
+  <!-- Divergence detector P13 -->
+  <path d="M996,190 C1030,200 1030,270 1024,290" fill="none" stroke="#7b1fa2" stroke-width="1.6" marker-end="url(#av)"/>
+  <path d="M996,412 C1030,400 1030,340 1024,320" fill="none" stroke="#7b1fa2" stroke-width="1.6" marker-end="url(#av)"/>
+  <rect x="1006" y="250" width="152" height="120" rx="10" fill="#ede7f6" stroke="#4527a0" stroke-width="2.5"/>
+  <text x="1082" y="274" text-anchor="middle" font-size="13" font-weight="800" fill="#311b92">P13</text>
+  <text x="1082" y="292" text-anchor="middle" font-size="11.5" font-weight="700" fill="#311b92">DIVERGENCE</text>
+  <text x="1082" y="307" text-anchor="middle" font-size="11.5" font-weight="700" fill="#311b92">= DETECTOR</text>
+  <text x="1082" y="326" text-anchor="middle" font-size="10" fill="#4527a0">gap between what it</text>
+  <text x="1082" y="339" text-anchor="middle" font-size="10" fill="#4527a0">SAID and what it DID</text>
+  <text x="1082" y="356" text-anchor="middle" font-size="10" font-weight="700" fill="#b71c1c">injection / deception</text>
+
+  <!-- Gate decision expansion connector -->
+  <path d="M686,565 L744,565" stroke="#7b1fa2" stroke-width="1.6" marker-end="url(#av)"/>
+  <rect x="746" y="520" width="250" height="92" rx="10" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2"/>
+  <text x="871" y="542" text-anchor="middle" font-size="12.5" font-weight="800" fill="#4a148c">ENFORCEMENT (deterministic)</text>
+  <text x="871" y="561" text-anchor="middle" font-size="10.5" fill="#4a148c">still the trust boundary — but the</text>
+  <text x="871" y="575" text-anchor="middle" font-size="10.5" fill="#4a148c">decision can be graded, not binary</text>
+  <text x="871" y="594" text-anchor="middle" font-size="10.5" font-weight="700" fill="#1b5e20">divergence signal can feed HOLD/escalate</text>
+  <text x="871" y="607" text-anchor="middle" font-size="10" fill="#7b1fa2">[NEW: top tap informs bottom decision]</text>
+
+  <!-- generality envelope -->
+  <rect x="58" y="112" width="1104" height="600" rx="14" fill="none" stroke="#9e9e9e" stroke-width="1.5" stroke-dasharray="9 7"/>
+  <text x="590" y="736" text-anchor="middle" font-size="12.5" fill="#616161" font-style="italic">P12 Generality — does the whole architecture hold across models / harnesses / architectures / languages?  (NOT yet tested)</text>
+</svg>

@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="820" viewBox="0 0 960 820" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <rect width="960" height="820" fill="#ffffff"/>
+
+  <!-- generality envelope: spans everything -->
+  <rect x="24" y="24" width="912" height="772" rx="20" fill="none" stroke="#9e9e9e" stroke-width="2" stroke-dasharray="10 8"/>
+  <text x="480" y="52" text-anchor="middle" font-size="15" fill="#616161" font-style="italic">P12  Generality — external validity (spans everything, NOT yet tested: 3 local models, one host)</text>
+
+  <!-- three lenses -->
+  <circle cx="350" cy="300" r="235" fill="#ef5350" fill-opacity="0.18" stroke="#c62828" stroke-width="2.5"/>
+  <circle cx="610" cy="300" r="235" fill="#42a5f5" fill-opacity="0.18" stroke="#1565c0" stroke-width="2.5"/>
+  <circle cx="480" cy="480" r="235" fill="#66bb6a" fill-opacity="0.18" stroke="#2e7d32" stroke-width="2.5"/>
+
+  <!-- lens titles -->
+  <text x="205" y="120" text-anchor="middle" font-size="22" font-weight="700" fill="#c62828">THREAT</text>
+  <text x="205" y="140" text-anchor="middle" font-size="12" fill="#c62828">what can go wrong</text>
+  <text x="755" y="120" text-anchor="middle" font-size="22" font-weight="700" fill="#1565c0">MEASUREMENT</text>
+  <text x="755" y="140" text-anchor="middle" font-size="12" fill="#1565c0">how we observe / prove it</text>
+  <text x="480" y="770" text-anchor="middle" font-size="22" font-weight="700" fill="#2e7d32">CONTROL</text>
+  <text x="480" y="788" text-anchor="middle" font-size="12" fill="#2e7d32">the deterministic defense</text>
+
+  <!-- THREAT only -->
+  <text x="215" y="245" text-anchor="middle" font-size="14" fill="#1a1a1a">
+    <tspan x="215" dy="0" font-weight="600">P2  Injection</tspan>
+    <tspan x="215" dy="18">(direct / indirect)</tspan>
+    <tspan x="215" dy="24" font-weight="600">P3  Autonomous</tspan>
+    <tspan x="215" dy="18">destruction</tspan>
+  </text>
+
+  <!-- MEASUREMENT only -->
+  <text x="748" y="245" text-anchor="middle" font-size="14" fill="#1a1a1a">
+    <tspan x="748" dy="0" font-weight="600">P1  Observability</tspan>
+    <tspan x="748" dy="18">(strace oracle)</tspan>
+    <tspan x="748" dy="24" font-weight="600">P9  Detectors miss it</tspan>
+    <tspan x="748" dy="18">(intra-object, ASan incl.)</tspan>
+  </text>
+
+  <!-- CONTROL only -->
+  <text x="480" y="590" text-anchor="middle" font-size="14" fill="#1a1a1a">
+    <tspan x="480" dy="0" font-weight="600">P6  Interception</tspan>
+    <tspan x="480" dy="20" font-weight="600">P7  Rootless vs rootful</tspan>
+    <tspan x="480" dy="20" font-weight="600">P8  Completeness</tspan>
+    <tspan x="480" dy="20" font-weight="600" fill="#b71c1c">P11 Gate-defeat (untested)</tspan>
+  </text>
+
+  <!-- THREAT ∩ MEASUREMENT -->
+  <text x="480" y="205" text-anchor="middle" font-size="13.5" fill="#1a1a1a">
+    <tspan x="480" dy="0" font-weight="700">P4  Two forces,</tspan>
+    <tspan x="480" dy="17" font-weight="700">one footprint</tspan>
+  </text>
+
+  <!-- THREAT ∩ CONTROL -->
+  <text x="338" y="420" text-anchor="middle" font-size="13" fill="#1a1a1a">
+    <tspan x="338" dy="0" font-weight="700">P10 Attacker</tspan>
+    <tspan x="338" dy="16" font-weight="700">at low level</tspan>
+  </text>
+
+  <!-- MEASUREMENT ∩ CONTROL -->
+  <text x="622" y="420" text-anchor="middle" font-size="13" fill="#1a1a1a">
+    <tspan x="622" dy="0" font-weight="700">P5  Certifiability</tspan>
+    <tspan x="622" dy="16" font-weight="700">(invariance)</tspan>
+  </text>
+
+  <!-- center: core thesis -->
+  <text x="480" y="330" text-anchor="middle" font-size="13" fill="#000000">
+    <tspan x="480" dy="0" font-weight="800">CORE THESIS</tspan>
+    <tspan x="480" dy="16" font-size="11">certify the deterministic gate,</tspan>
+    <tspan x="480" dy="14" font-size="11">at the observed syscall boundary,</tspan>
+    <tspan x="480" dy="14" font-size="11">against both forces at once</tspan>
+  </text>
+</svg>
