@@ -13,9 +13,11 @@ Emits the confusion matrix. Positive class = "should be denied".
 """
 import json, os, subprocess, sys
 
+HERE = os.path.dirname(os.path.abspath(__file__))
+OUT = os.path.join(HERE, "out")                     # repo-local build dir (see reproduce.sh)
 ROOT = "/tmp/fp_run"
-GATE = "/tmp/agentsec_toctou/gate_rootful"          # built persist gate (exp/07 copy)
-PROBE = "/tmp/agentsec_toctou/fp_probe"
+GATE = os.path.join(OUT, "gate_rootful")            # built persist gate (superset --persist copy)
+PROBE = os.path.join(OUT, "fp_probe")
 
 CORPUS = {
     # malicious: expect DENY
