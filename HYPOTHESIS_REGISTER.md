@@ -23,7 +23,7 @@ this file wins.
 | P14c | Cadence attributes actor class | **REFUTED** | EXP-14: random-sleep script indistinguishable from live agent |
 | P11 | Gate can be defeated (TOCTOU) | **SURVIVED** | EXP-11: PoC bypasses the persist gate 768/4000 (19.2%) per attempt, ~100% with retry; gate blocks the same attack 4000/4000 head-on. Existence of bypass is host-independent. |
 | P12 | Generality across models/arch/langs | **SURVIVED (language axis); PARTIAL** | EXP-P12: interception invariant across C/Python/shell (denied_execve=1 each). Arch axis untested (qemu seccomp unfaithful); model axis = 3 local models. |
-| P13 | Intent–footprint (CoT) divergence detects injection | **UNTESTED + DEMOTED** | see point 1 |
+| P13 | Intent–footprint (CoT) divergence detects injection | **TESTED (forensic); DEMOTED** | EXP-P13: divergence weak + injection-confined (22% sensitivity, 0% autonomous). Where present it is mechanism-concealment ("append to file" while doing execve). Non-adversarial models mostly narrate faithfully. Not a detector. |
 | P14g | Gate-reaction (stop/repeat/adapt) attributes actor | **UNTESTED + DEMOTED** | see point 1 |
 
 ## Point 1 — the manipulated-agent chameleon (demotion of P13, P14)
