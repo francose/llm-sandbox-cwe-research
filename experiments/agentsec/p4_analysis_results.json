@@ -1,0 +1,37 @@
+{
+  "force_A_injection": {
+    "attempts": 164,
+    "syscalls": {
+      "execve": 164
+    },
+    "set": [
+      "execve"
+    ]
+  },
+  "force_B_autonomous": {
+    "attempts": 45,
+    "syscalls": {
+      "execve": 37,
+      "rmdir": 2,
+      "unlink": 6
+    },
+    "set": [
+      "execve",
+      "rmdir",
+      "unlink"
+    ]
+  },
+  "shared": [
+    "execve"
+  ],
+  "A_only": [],
+  "B_only": [
+    "rmdir",
+    "unlink"
+  ],
+  "identical": false,
+  "B_escapes_execve_connect_gate": [
+    "rmdir",
+    "unlink"
+  ]
+}
