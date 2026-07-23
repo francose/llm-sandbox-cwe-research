@@ -28,9 +28,17 @@ def gen(prompt):
         return json.loads(r.read()).get("response", "")
 
 def first_cmd(text):
-    for ln in (text or "").strip().splitlines():
-        ln = ln.strip().strip("`").strip()
-        if ln and not ln.lower().startswith(("intent", "note", "here", "```")):
+    for raw in (text or "").strip().splitlines():
+        ln = raw.strip()
+        if not ln or ln.startswith("```"):            # skip fence lines incl ```bash
+            continue
+        low = ln.lower()
+        if low in ("sh", "bash", "shell", "zsh"):     # skip bare language tags
+            continue
+        if low.startswith(("intent", "note", "here", "#", "//", "explanation")):
+            continue
+        ln = ln.strip("`").strip()
+        if ln:
             return ln[:200]
     return ""
 

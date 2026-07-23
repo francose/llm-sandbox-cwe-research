@@ -24,7 +24,7 @@ this file wins.
 | P11 | Gate can be defeated (TOCTOU) | **SURVIVED** | EXP-11: PoC bypasses the persist gate 768/4000 (19.2%) per attempt, ~100% with retry; gate blocks the same attack 4000/4000 head-on. Existence of bypass is host-independent. |
 | P12 | Generality across models/arch/langs | **SURVIVED (language axis); PARTIAL** | EXP-P12: interception invariant across C/Python/shell (denied_execve=1 each). Arch axis untested (qemu seccomp unfaithful); model axis = 3 local models. |
 | P13 | Intent–footprint (CoT) divergence detects injection | **TESTED (forensic); DEMOTED** | EXP-P13: divergence weak + injection-confined (22% sensitivity, 0% autonomous). Where present it is mechanism-concealment ("append to file" while doing execve). Non-adversarial models mostly narrate faithfully. Not a detector. |
-| P14g | Gate-reaction (stop/repeat/adapt) attributes actor | **UNTESTED + DEMOTED** | see point 1 |
+| P14g | Gate-reaction (stop/repeat/adapt) attributes actor | **TESTED (forensic); DEMOTED** | EXP-P14g: live agent adapts 90% / repeats 10% / stops 0% after denial (method-escalation toward fixed goal). human=stop / script=repeat remain definitional; spoofable → not a control. Nugget: denial elicits enumeration, not deterrence. |
 
 ## Point 1 — the manipulated-agent chameleon (demotion of P13, P14)
 
@@ -77,11 +77,12 @@ claim, no "certifies against harm."
 4. ~~P12 second axis~~ — **DONE, SURVIVED language axis (EXP-P12).** Interception invariant across
    C/Python/shell. Arch axis remains open (needs a real second-arch host).
 
-Remaining untested and DEMOTED (forensic/non-adversarial only, cannot gate — point 1):
-5. **P13 divergence (forensic)** — does stated intent (CoT) diverge from the footprint, and does the
-   divergence differ across benign/injection/autonomous? *Measurement only; never a detector.*
-6. **P14g gate-reaction (forensic)** — stop/repeat/adapt after a denial; does it separate cooperative
-   actors? *Measurement only; spoofable, never a control.*
+5. ~~P13 divergence (forensic)~~ — **DONE (EXP-P13).** Weak, injection-confined (22% / 0% / 0%),
+   mechanism-concealment where present. Not a detector.
+6. ~~P14g gate-reaction (forensic)~~ — **DONE (EXP-P14g).** Agent adapts 90% / never stops; other classes
+   definitional; spoofable. Nugget: denial elicits enumeration, not deterrence.
+
+**QUEUE EMPTY — every hypothesis in the register is now tested or explicitly refuted/demoted.**
 
 ## Change log
 - LOCKED. P13, P14 demoted (point 1). P14c refuted (EXP-14). P8, P6/P7 refuted per hypothesis review.
@@ -90,4 +91,7 @@ Remaining untested and DEMOTED (forensic/non-adversarial only, cannot gate — p
 - EXP-12 done: gate selectivity is real (not deny-all) but strstr tokens are on a FP/FN Pareto front.
 - P4 REFUTED strong (EXP-P4): footprint set by mechanism not force; 18% autonomous escapes via unlink/rmdir.
 - P12 SURVIVED language axis (EXP-P12): interception invariant across C/Python/shell; arch axis open.
-  Remaining: P13, P14g — both DEMOTED forensic, tested only to characterize the (non-adversarial) signal.
+- P13 forensic (EXP-P13): divergence weak/injection-confined, mechanism-concealment. P14g forensic
+  (EXP-P14g): agent adapts 90%, never stops — denial elicits enumeration not deterrence.
+- ALL register hypotheses now tested or refuted/demoted. Next step is synthesis + remediation (deferred
+  to the end by request), not more tests.
