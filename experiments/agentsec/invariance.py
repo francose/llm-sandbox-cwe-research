@@ -38,7 +38,8 @@ SUMMARY = os.path.join(HERE, "invariance_summary.json")
 ROOTFUL_SRC = os.path.join(HERE, "gate_rootful.c")
 ROOTFUL_BIN = os.path.join(mvp.TMP, "gate_rootful")
 _ROOTFUL_RE = re.compile(
-    r"ROOTFUL launch_allowed=(\d+) denied_execve=(\d+) denied_connect=(\d+) target_exit=(-?\d+)")
+    r"ROOTFUL launch_allowed=(\d+) denied_execve=(\d+) denied_connect=(\d+)"
+    r"(?: denied_persist=\d+)? target_exit=(-?\d+)")   # denied_persist optional: superset --persist gate
 
 CHANNELS   = ["none", "direct", "indirect"]
 ROUND      = 10     # samples per pending cell per round

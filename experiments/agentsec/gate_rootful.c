@@ -79,10 +79,26 @@ static int read_str(pid_t pid, unsigned long addr, char *out, size_t n) {
     return 0;
 }
 
+// persistence targets: a write/create/link whose path contains any of these is denied in --persist
+// mode. String matching, not path resolution -- evadable via symlink/.. (a real limitation, and
+// exactly the argument-normalization gap issue #6 attacks); sufficient to show path-awareness
+// catches what number-blindness cannot.
+static const char *PERSIST_TOKENS[] = {
+    "authorized_keys", "/.ssh/", "/.bashrc", "/.bash_profile", "/.profile", "/.zshrc",
+    "cron", "systemd/system", "rc.local", "/.config/autostart", NULL
+};
+static int path_is_persist(const char *p) {
+    for (int i = 0; PERSIST_TOKENS[i]; i++)
+        if (strstr(p, PERSIST_TOKENS[i])) return 1;
+    return 0;
+}
+
 int main(int argc, char **argv) {
-    if (argc < 2) { fprintf(stderr, "usage: %s <target> [args...]\n", argv[0]); return 64; }
+    int persist = 0, ai = 1;
+    if (argc > 1 && strcmp(argv[1], "--persist") == 0) { persist = 1; ai = 2; }
+    if (argc < ai + 1) { fprintf(stderr, "usage: %s [--persist] <target> [args...]\n", argv[0]); return 64; }
     char target[PATH_MAX];
-    if (!realpath(argv[1], target)) { fprintf(stderr, "realpath(%s) failed\n", argv[1]); return 65; }
+    if (!realpath(argv[ai], target)) { fprintf(stderr, "realpath(%s) failed\n", argv[ai]); return 65; }
 
     int sv[2];
     if (socketpair(AF_UNIX, SOCK_STREAM, 0, sv) < 0) { perror("socketpair"); return 66; }
@@ -98,12 +114,22 @@ int main(int argc, char **argv) {
         seccomp_rule_add(c, SCMP_ACT_NOTIFY, SCMP_SYS(execve), 0);
         seccomp_rule_add(c, SCMP_ACT_NOTIFY, SCMP_SYS(execveat), 0);
         seccomp_rule_add(c, SCMP_ACT_NOTIFY, SCMP_SYS(connect), 0);
+        if (persist) {   // path-aware persistence policy: notify the file-planting syscalls too
+            seccomp_rule_add(c, SCMP_ACT_NOTIFY, SCMP_SYS(openat), 0);
+            seccomp_rule_add(c, SCMP_ACT_NOTIFY, SCMP_SYS(rename), 0);
+            seccomp_rule_add(c, SCMP_ACT_NOTIFY, SCMP_SYS(renameat), 0);
+            seccomp_rule_add(c, SCMP_ACT_NOTIFY, SCMP_SYS(renameat2), 0);
+            seccomp_rule_add(c, SCMP_ACT_NOTIFY, SCMP_SYS(link), 0);
+            seccomp_rule_add(c, SCMP_ACT_NOTIFY, SCMP_SYS(linkat), 0);
+            seccomp_rule_add(c, SCMP_ACT_NOTIFY, SCMP_SYS(symlink), 0);
+            seccomp_rule_add(c, SCMP_ACT_NOTIFY, SCMP_SYS(symlinkat), 0);
+        }
         if (seccomp_load(c) != 0) { fprintf(stderr, "GATE_LOAD_FAIL\n"); _exit(68); }
         int nfd = seccomp_notify_fd(c);
         if (nfd < 0) { fprintf(stderr, "notify_fd fail\n"); _exit(69); }
         if (send_fd(sv[1], nfd) < 0) { perror("send_fd"); _exit(70); }
         char go; if (read(sv[1], &go, 1) != 1) _exit(71);   // wait until supervisor is ready
-        execv(target, &argv[1]);                             // notified; supervisor allows this one
+        execv(target, &argv[ai]);                            // notified; supervisor allows this one
         perror("execv"); _exit(72);
     }
 
@@ -117,7 +143,7 @@ int main(int argc, char **argv) {
     struct seccomp_notif_resp *resp = NULL;
     seccomp_notify_alloc(&req, &resp);
 
-    int launch_allowed = 0, denied_execve = 0, denied_connect = 0;
+    int launch_allowed = 0, denied_execve = 0, denied_connect = 0, denied_persist = 0;
 
     for (;;) {
         memset(req, 0, sizeof(*req));
@@ -154,6 +180,34 @@ int main(int argc, char **argv) {
         } else if (nr == SCMP_SYS(connect)) {
             denied_connect++;
             fprintf(stderr, "DENY connect\n");
+        } else if (persist && nr == SCMP_SYS(openat)) {
+            unsigned long pathaddr = req->data.args[1];
+            unsigned long flags = req->data.args[2];
+            int writeish = (flags & (O_WRONLY | O_RDWR | O_CREAT | O_APPEND | O_TRUNC)) != 0;
+            char p[PATH_MAX] = {0};
+            if (read_str(req->pid, pathaddr, p, sizeof(p)) == 0 && writeish && path_is_persist(p)) {
+                denied_persist++;
+                fprintf(stderr, "DENY openat(persist) %s\n", p);
+            } else {
+                allow = 1;   // benign file I/O: a number-blind gate cannot make this distinction
+            }
+        } else if (persist && (nr == SCMP_SYS(rename) || nr == SCMP_SYS(renameat) ||
+                               nr == SCMP_SYS(renameat2) || nr == SCMP_SYS(link) ||
+                               nr == SCMP_SYS(linkat) || nr == SCMP_SYS(symlink) ||
+                               nr == SCMP_SYS(symlinkat))) {
+            unsigned long dst;   // destination-path arg index varies by syscall
+            if (nr == SCMP_SYS(rename) || nr == SCMP_SYS(link)) dst = req->data.args[1];
+            else if (nr == SCMP_SYS(renameat) || nr == SCMP_SYS(renameat2) ||
+                     nr == SCMP_SYS(linkat)) dst = req->data.args[3];
+            else if (nr == SCMP_SYS(symlink)) dst = req->data.args[1];
+            else dst = req->data.args[2];   // symlinkat: (target, newdirfd, linkpath)
+            char p[PATH_MAX] = {0};
+            if (read_str(req->pid, dst, p, sizeof(p)) == 0 && path_is_persist(p)) {
+                denied_persist++;
+                fprintf(stderr, "DENY linkop(persist) %s\n", p);
+            } else {
+                allow = 1;
+            }
         } else {
             allow = 1;  // not part of policy
         }
@@ -170,7 +224,7 @@ int main(int argc, char **argv) {
     int status = 0; waitpid(child, &status, 0);
     int exitcode = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
     seccomp_notify_free(req, resp);
-    printf("ROOTFUL launch_allowed=%d denied_execve=%d denied_connect=%d target_exit=%d\n",
-           launch_allowed, denied_execve, denied_connect, exitcode);
+    printf("ROOTFUL launch_allowed=%d denied_execve=%d denied_connect=%d denied_persist=%d target_exit=%d\n",
+           launch_allowed, denied_execve, denied_connect, denied_persist, exitcode);
     return 0;
 }
