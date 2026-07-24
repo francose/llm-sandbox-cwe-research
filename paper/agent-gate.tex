@@ -324,21 +324,20 @@ which is the point of Section~\ref{sec:attribution}.
 
 Syscall-boundary containment for untrusted code predates LLM agents. Seccomp-BPF and its user-notification
 extension are the mechanism under test here; the deep-argument race we exercise is described in the kernel
-manual pages for user notification and is not a new class of bug, only an instance of it in an
-agent-containment setting. Application kernels and sandboxes---gVisor, and the unprivileged, path-resolving
-Landlock LSM---address the coverage and race problems this paper measures, and Landlock is the natural
-comparison for the file-operation policy of Section~\ref{sec:selectivity}
-\,[CITATION NEEDED --- verify gVisor, Landlock references]. Attribution of a process by its syscall
-behaviour goes back to the host-intrusion-detection line begun by Forrest et al., \emph{A Sense of Self for
-Unix Processes} (1996) \,[CITATION NEEDED --- verify], which is the lineage our Section~\ref{sec:attribution}
-sits in and declines to extend into a control. On the language side, that a chain-of-thought need not match
-behaviour is established---Turpin et al. (2023) and Lanham et al. (2023) \,[CITATION NEEDED --- verify
-titles/venues]---which is why the divergence signal cannot be a detector. The emerging agent-safety
-evaluations (ToolEmu; AgentDojo; AgentHarm) \,[CITATION NEEDED --- verify] measure agent harm at the tool or
-task level; this paper measures the containment control beneath them, at the syscall boundary. We position
-against these lines rather than beside them: prior sandboxing work supplies race-free mechanisms our tested
-gate lacks, and prior attribution work supplies the negative result our behavioural section confirms in the
-agent setting.
+manual pages for user notification~\cite{seccompunotify} and is not a new class of bug, only an instance of
+it in an agent-containment setting. Application kernels and sandboxes---gVisor~\cite{gvisor}, and the
+unprivileged, path-resolving Landlock LSM~\cite{landlock}---address the coverage and race problems this
+paper measures, and Landlock is the natural comparison for the file-operation policy of
+Section~\ref{sec:selectivity}. Attribution of a process by its syscall behaviour goes back to the
+host-intrusion-detection line begun by Forrest et al., \emph{A Sense of Self for Unix Processes}~\cite{forrest96},
+which is the lineage our Section~\ref{sec:attribution} sits in and declines to extend into a control. On the
+language side, that a chain-of-thought need not match behaviour is established---Turpin et
+al.~\cite{turpin23} and Lanham et al.~\cite{lanham23}---which is why the divergence signal cannot be a
+detector. The emerging agent-safety evaluations (ToolEmu~\cite{toolemu}; AgentDojo~\cite{agentdojo};
+AgentHarm~\cite{agentharm}) measure agent harm at the tool or task level; this paper measures the
+containment control beneath them, at the syscall boundary. We position against these lines rather than
+beside them: prior sandboxing work supplies race-free mechanisms our tested gate lacks, and prior
+attribution work supplies the negative result our behavioural section confirms in the agent setting.
 
 \section{Conclusion}\label{sec:conclusion}
 
@@ -354,5 +353,17 @@ architecture.
 \paragraph{Reproducibility.} All code, data, and per-experiment results are committed at
 \texttt{github.com/francose/llm-sandbox-cwe-research}. \texttt{experiments/agentsec/reproduce.sh} rebuilds
 the gate and the probes from source and re-checks the headline results.
+
+\begin{thebibliography}{9}
+\bibitem{forrest96} S.~Forrest, S.~A.~Hofmeyr, A.~Somayaji, and T.~A.~Longstaff. A sense of self for Unix processes. In \emph{Proc.\ 1996 IEEE Symposium on Security and Privacy}, pp.\ 120--128, 1996.
+\bibitem{turpin23} M.~Turpin, J.~Michael, E.~Perez, and S.~R.~Bowman. Language models don't always say what they think: unfaithful explanations in chain-of-thought prompting. In \emph{Advances in Neural Information Processing Systems (NeurIPS)}, 2023. arXiv:2305.04388.
+\bibitem{lanham23} T.~Lanham et al. Measuring faithfulness in chain-of-thought reasoning. Anthropic, 2023. arXiv:2307.13702.
+\bibitem{toolemu} Y.~Ruan et al. Identifying the risks of LM agents with an LM-emulated sandbox. In \emph{International Conference on Learning Representations (ICLR)}, 2024. arXiv:2309.15817.
+\bibitem{agentdojo} E.~Debenedetti et al. AgentDojo: a dynamic environment to evaluate prompt injection attacks and defenses for LLM agents. In \emph{NeurIPS Datasets and Benchmarks Track}, 2024. arXiv:2406.13352.
+\bibitem{agentharm} M.~Andriushchenko et al. AgentHarm: a benchmark for measuring harmfulness of LLM agents. 2024. arXiv:2410.09024.
+\bibitem{landlock} M.~Salaün. Landlock: unprivileged access control. Linux kernel documentation, \texttt{docs.kernel.org/userspace-api/landlock.html} (merged in Linux 5.13; TCP network control in 6.7, ABI~v4).
+\bibitem{gvisor} Google. gVisor: an application kernel for containers. \texttt{https://gvisor.dev}.
+\bibitem{seccompunotify} Linux man-pages project. \texttt{seccomp\_unotify}(2): seccomp user-space notification mechanism. \texttt{https://man7.org/linux/man-pages/man2/seccomp\_unotify.2.html}.
+\end{thebibliography}
 
 \end{document}
