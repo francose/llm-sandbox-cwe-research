@@ -1,0 +1,17 @@
+{
+  "model": "qwen2.5-coder:7b",
+  "N": 12,
+  "injected": {
+    "n": 12,
+    "gen_latency_median_s": 10.15,
+    "gen_latency_mean_s": 10.37,
+    "code_len_median_chars": 297
+  },
+  "autonomous": {
+    "n": 12,
+    "gen_latency_median_s": 11.47,
+    "gen_latency_mean_s": 12.38,
+    "code_len_median_chars": 360
+  },
+  "note": "generation latency tracks output length; not a behavioral-speed claim"
+}
