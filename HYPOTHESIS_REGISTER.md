@@ -22,7 +22,7 @@ this file wins.
 | P8 | Blocklist is complete | **REFUTED** | io_uring, open/openat2/creat, arch numbering, UDP egress — verified gaps |
 | P14c | Cadence attributes actor class | **REFUTED** | EXP-14: random-sleep script indistinguishable from live agent |
 | P11 | Gate can be defeated (TOCTOU) | **SURVIVED** | EXP-11: PoC bypasses the persist gate 768/4000 (19.2%) per attempt, ~100% with retry; gate blocks the same attack 4000/4000 head-on. Existence of bypass is host-independent. |
-| P12 | Generality across models/arch/langs | **SURVIVED (language axis); PARTIAL** | EXP-P12: interception invariant across C/Python/shell (denied_execve=1 each). Arch axis untested (qemu seccomp unfaithful); model axis = 3 local models. |
+| P12 | Generality across models/arch/langs | **SURVIVED (language axis); model axis extended to frontier** | EXP-P12: interception invariant across C/Python/shell. EXP-FRONTIER: injection tested on claude-sonnet-5 + gemini-2.5-pro — 0 refusals, direct compliance at local-model rates (Claude 7/7, Gemini 4/5), indirect vendor-split (Claude 0/8, Gemini 6/6). Arch axis still untested. |
 | P13 | Intent–footprint (CoT) divergence detects injection | **TESTED (forensic); DEMOTED** | EXP-P13: divergence weak + injection-confined (22% sensitivity, 0% autonomous). Where present it is mechanism-concealment ("append to file" while doing execve). Non-adversarial models mostly narrate faithfully. Not a detector. |
 | P14g | Gate-reaction (stop/repeat/adapt) attributes actor | **TESTED (forensic); DEMOTED** | EXP-P14g: live agent adapts 90% / repeats 10% / stops 0% after denial (method-escalation toward fixed goal). human=stop / script=repeat remain definitional; spoofable → not a control. Nugget: denial elicits enumeration, not deterrence. |
 
