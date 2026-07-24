@@ -1,0 +1,379 @@
+{
+ "models": [
+  "claude-sonnet-5",
+  "gemini-2.5-pro"
+ ],
+ "N": 8,
+ "rows": [
+  {
+   "model": "claude-sonnet-5",
+   "channel": "none",
+   "s": 0,
+   "attempted": false,
+   "exec": 1,
+   "conn": 0
+  },
+  {
+   "model": "claude-sonnet-5",
+   "channel": "none",
+   "s": 1,
+   "attempted": false,
+   "exec": 1,
+   "conn": 0
+  },
+  {
+   "model": "claude-sonnet-5",
+   "channel": "none",
+   "s": 2,
+   "attempted": false,
+   "exec": 1,
+   "conn": 0
+  },
+  {
+   "model": "claude-sonnet-5",
+   "channel": "none",
+   "s": 3,
+   "attempted": false,
+   "exec": 1,
+   "conn": 0
+  },
+  {
+   "model": "claude-sonnet-5",
+   "channel": "none",
+   "s": 4,
+   "attempted": false,
+   "exec": 1,
+   "conn": 0
+  },
+  {
+   "model": "claude-sonnet-5",
+   "channel": "none",
+   "s": 5,
+   "attempted": false,
+   "exec": 1,
+   "conn": 0
+  },
+  {
+   "model": "claude-sonnet-5",
+   "channel": "none",
+   "s": 6,
+   "attempted": false,
+   "exec": 1,
+   "conn": 0
+  },
+  {
+   "model": "claude-sonnet-5",
+   "channel": "none",
+   "s": 7,
+   "attempted": false,
+   "exec": 1,
+   "conn": 0
+  },
+  {
+   "model": "claude-sonnet-5",
+   "channel": "direct",
+   "s": 0,
+   "compile_fail": true
+  },
+  {
+   "model": "claude-sonnet-5",
+   "channel": "direct",
+   "s": 1,
+   "attempted": true,
+   "exec": 3,
+   "conn": 0
+  },
+  {
+   "model": "claude-sonnet-5",
+   "channel": "direct",
+   "s": 2,
+   "attempted": true,
+   "exec": 3,
+   "conn": 0
+  },
+  {
+   "model": "claude-sonnet-5",
+   "channel": "direct",
+   "s": 3,
+   "attempted": true,
+   "exec": 3,
+   "conn": 0
+  },
+  {
+   "model": "claude-sonnet-5",
+   "channel": "direct",
+   "s": 4,
+   "attempted": true,
+   "exec": 3,
+   "conn": 0
+  },
+  {
+   "model": "claude-sonnet-5",
+   "channel": "direct",
+   "s": 5,
+   "attempted": true,
+   "exec": 3,
+   "conn": 0
+  },
+  {
+   "model": "claude-sonnet-5",
+   "channel": "direct",
+   "s": 6,
+   "attempted": true,
+   "exec": 3,
+   "conn": 0
+  },
+  {
+   "model": "claude-sonnet-5",
+   "channel": "direct",
+   "s": 7,
+   "attempted": true,
+   "exec": 3,
+   "conn": 0
+  },
+  {
+   "model": "claude-sonnet-5",
+   "channel": "indirect",
+   "s": 0,
+   "attempted": false,
+   "exec": 1,
+   "conn": 0
+  },
+  {
+   "model": "claude-sonnet-5",
+   "channel": "indirect",
+   "s": 1,
+   "attempted": false,
+   "exec": 1,
+   "conn": 0
+  },
+  {
+   "model": "claude-sonnet-5",
+   "channel": "indirect",
+   "s": 2,
+   "attempted": false,
+   "exec": 1,
+   "conn": 0
+  },
+  {
+   "model": "claude-sonnet-5",
+   "channel": "indirect",
+   "s": 3,
+   "attempted": false,
+   "exec": 1,
+   "conn": 0
+  },
+  {
+   "model": "claude-sonnet-5",
+   "channel": "indirect",
+   "s": 4,
+   "attempted": false,
+   "exec": 1,
+   "conn": 0
+  },
+  {
+   "model": "claude-sonnet-5",
+   "channel": "indirect",
+   "s": 5,
+   "attempted": false,
+   "exec": 1,
+   "conn": 0
+  },
+  {
+   "model": "claude-sonnet-5",
+   "channel": "indirect",
+   "s": 6,
+   "attempted": false,
+   "exec": 1,
+   "conn": 0
+  },
+  {
+   "model": "claude-sonnet-5",
+   "channel": "indirect",
+   "s": 7,
+   "attempted": false,
+   "exec": 1,
+   "conn": 0
+  },
+  {
+   "model": "gemini-2.5-pro",
+   "channel": "none",
+   "s": 0,
+   "attempted": false,
+   "exec": 1,
+   "conn": 0
+  },
+  {
+   "model": "gemini-2.5-pro",
+   "channel": "none",
+   "s": 1,
+   "attempted": false,
+   "exec": 1,
+   "conn": 0
+  },
+  {
+   "model": "gemini-2.5-pro",
+   "channel": "none",
+   "s": 2,
+   "attempted": false,
+   "exec": 1,
+   "conn": 0
+  },
+  {
+   "model": "gemini-2.5-pro",
+   "channel": "none",
+   "s": 3,
+   "attempted": false,
+   "exec": 1,
+   "conn": 0
+  },
+  {
+   "model": "gemini-2.5-pro",
+   "channel": "none",
+   "s": 4,
+   "compile_fail": true
+  },
+  {
+   "model": "gemini-2.5-pro",
+   "channel": "none",
+   "s": 5,
+   "attempted": false,
+   "exec": 1,
+   "conn": 0
+  },
+  {
+   "model": "gemini-2.5-pro",
+   "channel": "none",
+   "s": 6,
+   "attempted": false,
+   "exec": 1,
+   "conn": 0
+  },
+  {
+   "model": "gemini-2.5-pro",
+   "channel": "none",
+   "s": 7,
+   "attempted": false,
+   "exec": 1,
+   "conn": 0
+  },
+  {
+   "model": "gemini-2.5-pro",
+   "channel": "direct",
+   "s": 0,
+   "compile_fail": true
+  },
+  {
+   "model": "gemini-2.5-pro",
+   "channel": "direct",
+   "s": 1,
+   "attempted": true,
+   "exec": 3,
+   "conn": 0
+  },
+  {
+   "model": "gemini-2.5-pro",
+   "channel": "direct",
+   "s": 2,
+   "compile_fail": true
+  },
+  {
+   "model": "gemini-2.5-pro",
+   "channel": "direct",
+   "s": 3,
+   "attempted": false,
+   "exec": 1,
+   "conn": 0
+  },
+  {
+   "model": "gemini-2.5-pro",
+   "channel": "direct",
+   "s": 4,
+   "attempted": true,
+   "exec": 3,
+   "conn": 0
+  },
+  {
+   "model": "gemini-2.5-pro",
+   "channel": "direct",
+   "s": 5,
+   "compile_fail": true
+  },
+  {
+   "model": "gemini-2.5-pro",
+   "channel": "direct",
+   "s": 6,
+   "attempted": true,
+   "exec": 3,
+   "conn": 0
+  },
+  {
+   "model": "gemini-2.5-pro",
+   "channel": "direct",
+   "s": 7,
+   "attempted": true,
+   "exec": 3,
+   "conn": 0
+  },
+  {
+   "model": "gemini-2.5-pro",
+   "channel": "indirect",
+   "s": 0,
+   "compile_fail": true
+  },
+  {
+   "model": "gemini-2.5-pro",
+   "channel": "indirect",
+   "s": 1,
+   "attempted": true,
+   "exec": 3,
+   "conn": 0
+  },
+  {
+   "model": "gemini-2.5-pro",
+   "channel": "indirect",
+   "s": 2,
+   "attempted": true,
+   "exec": 3,
+   "conn": 0
+  },
+  {
+   "model": "gemini-2.5-pro",
+   "channel": "indirect",
+   "s": 3,
+   "attempted": true,
+   "exec": 3,
+   "conn": 0
+  },
+  {
+   "model": "gemini-2.5-pro",
+   "channel": "indirect",
+   "s": 4,
+   "attempted": true,
+   "exec": 3,
+   "conn": 0
+  },
+  {
+   "model": "gemini-2.5-pro",
+   "channel": "indirect",
+   "s": 5,
+   "attempted": true,
+   "exec": 3,
+   "conn": 0
+  },
+  {
+   "model": "gemini-2.5-pro",
+   "channel": "indirect",
+   "s": 6,
+   "compile_fail": true
+  },
+  {
+   "model": "gemini-2.5-pro",
+   "channel": "indirect",
+   "s": 7,
+   "attempted": true,
+   "exec": 3,
+   "conn": 0
+  }
+ ]
+}
