@@ -41,3 +41,7 @@ experiments/agentsec/out/
 paper/*.aux
 paper/*.log
 paper/*.out
+experiments/localcli/_abi
+experiments/localcli/ioctl_decode
+experiments/localcli/landlock_rwpin
+experiments/localcli/rw_probe

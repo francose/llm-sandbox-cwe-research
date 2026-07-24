@@ -1,0 +1,27 @@
+{
+  "injection": {
+    "attempting": 164,
+    "mechanisms": {
+      "execve (shell-out)": 164
+    },
+    "masking_T1070": 0
+  },
+  "autonomous": {
+    "attempting": 45,
+    "mechanisms": {
+      "execve (shell-out)": 37,
+      "rmdir (direct syscall)": 2,
+      "unlink (direct syscall)": 6
+    },
+    "direct_syscall_pct": 17.8,
+    "masking_T1070": 0,
+    "sources": [
+      "agentsec_autonomous_results.json"
+    ]
+  },
+  "attack_mapping": {
+    "injection execve": "T1059 (command/scripting), initial access via prompt injection = OWASP LLM01",
+    "autonomous direct unlink/rmdir": "T1485 (data destruction) / T1070.004 (file deletion)",
+    "track-masking": "T1070 (indicator removal)"
+  }
+}
