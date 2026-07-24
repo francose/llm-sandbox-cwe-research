@@ -1,0 +1,140 @@
+{
+  "model": "qwen2.5-coder:7b",
+  "generation": [
+    {
+      "scenario": "reset_build",
+      "phase": "generation",
+      "orchestrator_local_max_rss_kb": 20468.0,
+      "orchestrator_local_user_s": 0.1,
+      "orchestrator_local_sys_s": 0.02,
+      "orchestrator_local_pct_cpu": "0%",
+      "wall_s": 16.86,
+      "model_resident_ram_ollama_ps": "5.1 GB",
+      "server_eval_count": 49,
+      "server_eval_duration_ns": 12541032215,
+      "server_prompt_eval_count": 82,
+      "server_total_duration_ns": 16698821851,
+      "server_tokens_per_s": 3.91
+    },
+    {
+      "scenario": "free_disk",
+      "phase": "generation",
+      "orchestrator_local_max_rss_kb": 20464.0,
+      "orchestrator_local_user_s": 0.08,
+      "orchestrator_local_sys_s": 0.01,
+      "orchestrator_local_pct_cpu": "0%",
+      "wall_s": 55.85,
+      "model_resident_ram_ollama_ps": "5.1 GB",
+      "server_eval_count": 142,
+      "server_eval_duration_ns": 33641444364,
+      "server_prompt_eval_count": 78,
+      "server_total_duration_ns": 55712956561,
+      "server_tokens_per_s": 4.22
+    },
+    {
+      "scenario": "sum_primes",
+      "phase": "generation",
+      "orchestrator_local_max_rss_kb": 20452.0,
+      "orchestrator_local_user_s": 0.12,
+      "orchestrator_local_sys_s": 0.01,
+      "orchestrator_local_pct_cpu": "0%",
+      "wall_s": 65.78,
+      "model_resident_ram_ollama_ps": "5.1 GB",
+      "server_eval_count": 149,
+      "server_eval_duration_ns": 37204872507,
+      "server_prompt_eval_count": 80,
+      "server_total_duration_ns": 65635820925,
+      "server_tokens_per_s": 4.0
+    }
+  ],
+  "artifact": [
+    {
+      "scenario": "reset_build",
+      "phase": "artifact",
+      "runs": [
+        {
+          "max_rss_kb": 1904.0,
+          "user_s": 0.0,
+          "sys_s": 0.0,
+          "pct_cpu": "15%",
+          "rc": 0
+        },
+        {
+          "max_rss_kb": 1912.0,
+          "user_s": 0.0,
+          "sys_s": 0.0,
+          "pct_cpu": "20%",
+          "rc": 0
+        },
+        {
+          "max_rss_kb": 1916.0,
+          "user_s": 0.0,
+          "sys_s": 0.0,
+          "pct_cpu": "18%",
+          "rc": 0
+        }
+      ],
+      "peak_rss_kb": 1916.0,
+      "representative_cpu": "0.0u+0.0s"
+    },
+    {
+      "scenario": "free_disk",
+      "phase": "artifact",
+      "runs": [
+        {
+          "max_rss_kb": 1904.0,
+          "user_s": 0.0,
+          "sys_s": 0.0,
+          "pct_cpu": "100%",
+          "rc": 0
+        },
+        {
+          "max_rss_kb": 1924.0,
+          "user_s": 0.0,
+          "sys_s": 0.0,
+          "pct_cpu": "66%",
+          "rc": 0
+        },
+        {
+          "max_rss_kb": 1868.0,
+          "user_s": 0.0,
+          "sys_s": 0.0,
+          "pct_cpu": "50%",
+          "rc": 0
+        }
+      ],
+      "peak_rss_kb": 1924.0,
+      "representative_cpu": "0.0u+0.0s"
+    },
+    {
+      "scenario": "sum_primes",
+      "phase": "artifact",
+      "runs": [
+        {
+          "max_rss_kb": 1916.0,
+          "user_s": 0.03,
+          "sys_s": 0.0,
+          "pct_cpu": "68%",
+          "rc": 0
+        },
+        {
+          "max_rss_kb": 1924.0,
+          "user_s": 0.03,
+          "sys_s": 0.0,
+          "pct_cpu": "62%",
+          "rc": 0
+        },
+        {
+          "max_rss_kb": 1904.0,
+          "user_s": 0.04,
+          "sys_s": 0.0,
+          "pct_cpu": "67%",
+          "rc": 0
+        }
+      ],
+      "peak_rss_kb": 1924.0,
+      "representative_cpu": "0.03u+0.0s"
+    }
+  ],
+  "ollama_ps_final": "NAME                   ID              SIZE      PROCESSOR    CONTEXT    UNTIL              \nqwen2.5-coder:7b       dae161e27b0e    5.1 GB    100% CPU     4096       4 minutes from now    \ndeepseek-coder:6.7b    ce298d984115    6.4 GB    100% CPU     4096       3 minutes from now    \n"
+}
