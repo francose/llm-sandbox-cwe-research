@@ -71,30 +71,41 @@ launch(){ # launch the agent into cgroup $1 with counter $2
 echo "=================================================================="
 echo "A. concurrent-fork termination -- PID enumeration vs cgroup.kill"
 echo "=================================================================="
+# Rate over trials, not a single shot: a PID-enumeration sweep sometimes wins on timing, so we
+# report how often each method leaves the cgroup non-empty. cgroup.kill is deterministically 0.
+TRIALS=20
+ENUM_SURV=0; KILL_SURV=0
 
-# A1: naive PID-enumeration sweep
-CGA="$BASE/naive"; mkdir -p "$CGA"; CNTA="$WORK/ctrA"
-launch "$CGA" "$CNTA"
-BEFORE_A=$(wc -w < "$CGA/cgroup.procs"); C_AT_A=$(ctr "$CNTA")
-mapfile -t SNAP < <(cat "$CGA/cgroup.procs")
-for p in "${SNAP[@]}"; do kill -9 "$p" 2>/dev/null; done
-sleep 0.5
-SURV_A=$(wc -w < "$CGA/cgroup.procs"); POP_A=$(populated "$CGA")
-sleep 0.5; C_AFTER_A=$(ctr "$CNTA")
-echo "   snapshot killed: ${#SNAP[@]} pids | live before=$BEFORE_A  survivors after sweep=$SURV_A  populated=$POP_A"
-echo "   work counter: at_trigger=$C_AT_A  after=$C_AFTER_A  delta_after_trigger=$((C_AFTER_A - C_AT_A))"
-echo 1 > "$CGA/cgroup.kill" 2>/dev/null; sleep 0.3
+for t in $(seq 1 $TRIALS); do
+  CGA="$BASE/naive$t"; mkdir -p "$CGA"; CNTA="$WORK/ctrA$t"
+  launch "$CGA" "$CNTA"
+  mapfile -t SNAP < <(cat "$CGA/cgroup.procs")
+  for p in "${SNAP[@]}"; do kill -9 "$p" 2>/dev/null; done   # kill exactly what we enumerated
+  s=$(wc -w < "$CGA/cgroup.procs")                            # check immediately: forks in the gap survive
+  [ "${s:-0}" -gt 0 ] && ENUM_SURV=$((ENUM_SURV+1))
+  echo 1 > "$CGA/cgroup.kill" 2>/dev/null; sleep 0.05; rmdir "$CGA" 2>/dev/null
+done
 
-# A2: cgroup.kill on a fresh identical tree
-CGB="$BASE/atomic"; mkdir -p "$CGB"; CNTB="$WORK/ctrB"
+for t in $(seq 1 $TRIALS); do
+  CGB="$BASE/atomic$t"; mkdir -p "$CGB"; CNTB="$WORK/ctrB$t"
+  launch "$CGB" "$CNTB"
+  echo 1 > "$CGB/cgroup.kill"
+  for i in $(seq 1 300); do [ "$(populated "$CGB")" = 0 ] && break; sleep 0.01; done
+  s=$(wc -w < "$CGB/cgroup.procs")
+  [ "${s:-0}" -gt 0 ] && KILL_SURV=$((KILL_SURV+1))
+  rmdir "$CGB" 2>/dev/null
+done
+echo "   PID enumeration left survivors in  $ENUM_SURV / $TRIALS trials"
+echo "   cgroup.kill    left survivors in  $KILL_SURV / $TRIALS trials"
+
+# post-trigger work: cgroup.kill on a live tree; how much work lands after the trigger (expect ~0)
+CGB="$BASE/posttrig"; mkdir -p "$CGB"; CNTB="$WORK/ctrB"
 launch "$CGB" "$CNTB"
-BEFORE_B=$(wc -w < "$CGB/cgroup.procs"); C_AT_B=$(ctr "$CNTB")
-echo 1 > "$CGB/cgroup.kill"
-for i in $(seq 1 200); do [ "$(populated "$CGB")" = 0 ] && break; sleep 0.01; done
-SURV_B=$(wc -w < "$CGB/cgroup.procs"); POP_B=$(populated "$CGB")
-sleep 0.5; C_AFTER_B=$(ctr "$CNTB")
-echo "   cgroup.kill: live before=$BEFORE_B  survivors=$SURV_B  populated=$POP_B"
-echo "   work counter: at_trigger=$C_AT_B  after=$C_AFTER_B  delta_after_trigger=$((C_AFTER_B - C_AT_B))"
+C_AT_B=$(ctr "$CNTB"); echo 1 > "$CGB/cgroup.kill"
+for i in $(seq 1 300); do [ "$(populated "$CGB")" = 0 ] && break; sleep 0.01; done
+sleep 0.5; C_AFTER_B=$(ctr "$CNTB"); SURV_B=$(wc -w < "$CGB/cgroup.procs")
+echo "   cgroup.kill post-trigger: survivors=$SURV_B  work_after_trigger=$((C_AFTER_B - C_AT_B))  (0 == quiescent)"
+rmdir "$CGB" 2>/dev/null
 
 echo "=================================================================="
 echo "B. freeze then inspect -- cgroup.freeze quiesces the tree"
@@ -134,7 +145,6 @@ else
 fi
 
 echo "=================================================================="
-echo "KILLSWITCH_RESULT pid_enum_survivors=$SURV_A cgroup_kill_survivors=$SURV_B \
-kill_post_trigger_writes=$((C_AFTER_B - C_AT_B)) enum_post_trigger_writes=$((C_AFTER_A - C_AT_A)) \
-frozen_advance=$((C_FROZEN_2 - C_FROZEN_1))"
+echo "KILLSWITCH_RESULT trials=$TRIALS enum_left_survivors=$ENUM_SURV cgroup_kill_left_survivors=$KILL_SURV \
+kill_post_trigger_writes=$((C_AFTER_B - C_AT_B)) frozen_advance=$((C_FROZEN_2 - C_FROZEN_1))"
 echo "=================================================================="

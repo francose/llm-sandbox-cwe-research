@@ -26,8 +26,9 @@
 static _Atomic long *counter;
 
 static void worker(void){
-    // ~300 ms of work, appending to the shared counter, then exit so the supervisor churns us.
-    for (int n = 0; n < 300; n++){
+    // ~120 ms of work, appending to the shared counter, then exit so the supervisor churns us.
+    // Short lifetime => fast PID turnover, which is what a PID-enumeration sweep races against.
+    for (int n = 0; n < 120; n++){
         atomic_fetch_add_explicit(counter, 1, memory_order_relaxed);
         usleep(1000);
     }
