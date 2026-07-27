@@ -766,9 +766,19 @@ which is the lineage our Section~\ref{sec:attribution} sits in and declines to e
 language side, that a chain-of-thought need not match behaviour is established---Turpin et
 al.~\cite{turpin23} and Lanham et al.~\cite{lanham23}---which is why the divergence signal cannot be a
 detector. The emerging agent-safety evaluations (ToolEmu~\cite{toolemu}; AgentDojo~\cite{agentdojo};
-AgentHarm~\cite{agentharm}) measure agent harm at the tool or task level; this paper measures the
-containment control beneath them, at the syscall boundary. We position against these lines rather than
-beside them: prior sandboxing work supplies race-free mechanisms our tested gate lacks, and prior
+AgentHarm~\cite{agentharm}; RedCode's 4{,}050 risky-code cases~\cite{redcode} and its automated
+red-teaming successor RedCodeAgent~\cite{redcodeagent}; CIBER's scoring of code-interpreter agents
+against prompt injection and memory poisoning~\cite{ciber}) measure agent harm at the tool or task
+level; this paper measures the containment control beneath them, at the syscall boundary. Two 2026
+lines sit closest. SandboxEscapeBench measures the \emph{attacker} side of this same boundary---whether
+a frontier model can find and exploit a container-escape path across misconfiguration, privilege,
+kernel, and orchestration vectors~\cite{sandboxescape}---where we measure whether a defender's mechanism
+holds against a fixed attack matrix; the two are complementary halves of one question. Rashidi's
+systematization of execution-security research for AI coding agents~\cite{sok26} names isolation, access
+control, and time-of-check-to-time-of-use among its organizing categories and reports that they lack
+unified evaluation; this paper contributes one such evaluation, a compile-and-run measurement of a
+single access-control gate, its TOCTOU failure, and its successor. We position against these lines rather
+than beside them: prior sandboxing work supplies race-free mechanisms our tested gate lacks, and prior
 attribution work supplies the negative result our behavioural section confirms in the agent setting.
 
 \section{Conclusion}\label{sec:conclusion}
@@ -791,7 +801,7 @@ III benchmarks reproduce through \texttt{landlock\_bench.sh}, whose third benchm
 of Section~\ref{sec:landlock} (\texttt{landlock\_scope.c}), and the \texttt{enum\_tree.py},
 \texttt{concealment\_capture.py}, \texttt{matrix\_analysis.py}, and \texttt{telemetry\_probe.py} probes.
 
-\begin{thebibliography}{16}
+\begin{thebibliography}{21}
 \bibitem{garfinkel03} T.~Garfinkel. Traps and pitfalls: practical problems in system call interposition based security tools. In \emph{Proc.\ Network and Distributed System Security Symposium (NDSS)}, 2003. Race conditions are Section~4.3.
 \bibitem{watson07} R.~N.~M.~Watson. Exploiting concurrency vulnerabilities in system call wrappers. In \emph{Proc.\ 1st USENIX Workshop on Offensive Technologies (WOOT)}, 2007.
 \bibitem{seccompheader} Linux kernel. \texttt{include/uapi/linux/seccomp.h}: commentary on \texttt{SECCOMP\_USER\_NOTIF\_FLAG\_CONTINUE}. ``It should be absolutely clear that this means that the seccomp notifier \_cannot\_ be used to implement a security policy!''
@@ -802,6 +812,11 @@ of Section~\ref{sec:landlock} (\texttt{landlock\_scope.c}), and the \texttt{enum
 \bibitem{toolemu} Y.~Ruan et al. Identifying the risks of LM agents with an LM-emulated sandbox. In \emph{International Conference on Learning Representations (ICLR)}, 2024. arXiv:2309.15817.
 \bibitem{agentdojo} E.~Debenedetti et al. AgentDojo: a dynamic environment to evaluate prompt injection attacks and defenses for LLM agents. In \emph{NeurIPS Datasets and Benchmarks Track}, 2024. arXiv:2406.13352.
 \bibitem{agentharm} M.~Andriushchenko et al. AgentHarm: a benchmark for measuring harmfulness of LLM agents. 2024. arXiv:2410.09024.
+\bibitem{redcode} C.~Guo, X.~Liu, C.~Xie, A.~Zhou, Y.~Zeng, Z.~Lin, D.~Song, and B.~Li. RedCode: risky code execution and generation benchmark for code agents. In \emph{Advances in Neural Information Processing Systems (NeurIPS) Datasets and Benchmarks Track}, 2024. arXiv:2411.07781.
+\bibitem{redcodeagent} C.~Guo, C.~Xie, Y.~Yang, Z.~Chen, Z.~Lin, X.~Davies, Y.~Gal, D.~Song, and B.~Li. RedCodeAgent: automatic red-teaming agent against diverse code agents. 2025. arXiv:2510.02609.
+\bibitem{ciber} L.~Ba, Q.~Li, and S.~Li. CIBER: a comprehensive benchmark for security evaluation of code interpreter agents. 2026. arXiv:2602.19547.
+\bibitem{sandboxescape} R.~Marchand, A.~O~Cathain, J.~Wynne, P.~M.~Giavridis, S.~Deverett, J.~Wilkinson, J.~Gwartz, and H.~Coppock. Quantifying frontier LLM capabilities for container sandbox escape. 2026. arXiv:2603.02277.
+\bibitem{sok26} M.~Rashidi. The Balkanization of execution-security research for AI coding agents: isolation, access control, and time-of-check-to-time-of-use vulnerabilities. 2026. arXiv:2607.05743.
 \bibitem{landlock} M.~Salaün. Landlock: unprivileged access control. Linux kernel documentation, \texttt{docs.kernel.org/userspace-api/landlock.html} (merged in Linux 5.13; TCP network control in 6.7, ABI~v4).
 \bibitem{gvisor} Google. gVisor: an application kernel for containers. \texttt{https://gvisor.dev}.
 \bibitem{seccompunotify} Linux man-pages project. \texttt{seccomp\_unotify}(2): seccomp user-space notification mechanism. \texttt{https://man7.org/linux/man-pages/man2/seccomp\_unotify.2.html}.
