@@ -46,4 +46,17 @@ DENIED="$RUN/denied"; mkdir -p "$DENIED"
 unshare -rn sh -c "ip link set lo up; exec '$OUT/landlock_scope' '$ALLOWED' '$DENIED' 127.0.0.1" \
   2>&1 | sed 's/^/   /'
 
+echo; echo "===================================================================="
+echo "BENCHMARK 4 -- the same open, submitted asynchronously through io_uring"
+echo "===================================================================="
+gcc -O2 "$HERE/iouring_probe.c" -o "$OUT/iouring_probe" && echo "  iouring_probe ok"
+IOU="$OUT/iouring_probe"
+echo "-- unprotected (baseline, no control):"
+rm -f "$EVIL"; "$IOU" "$EVIL" | sed 's/^/   /'
+echo "-- seccomp persist gate (SCMP_ACT_NOTIFY sits at syscall entry):"
+rm -f "$EVIL"; "$SG" --persist "$IOU" "$EVIL" 2>/dev/null | grep '^direct=' | sed 's/^/   /'
+echo "-- Landlock allowlist (LSM hook, and io_uring carries the submitter's credentials):"
+rm -f "$EVIL"; "$LL" "$ALLOWED" "$IOU" "$EVIL" 2>/dev/null | sed 's/^/   /'
+rm -f "$EVIL"
+
 rm -rf "$OUT" "$RUN"

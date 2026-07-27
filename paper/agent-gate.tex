@@ -16,9 +16,9 @@
 \setlength{\emergencystretch}{3em}
 
 % Measured figures. Every number traces to a committed experiment in
-% experiments/agentsec/ and is re-checkable via reproduce.sh (8/8).
+% experiments/agentsec/ and is re-checkable via reproduce.sh (9/9).
 \newcommand{\Nrace}{4000}
-\newcommand{\RaceLo}{19.2}
+\newcommand{\RaceLo}{18.9}
 \newcommand{\RaceHi}{23.1}
 \newcommand{\RaceBench}{21.4}
 \newcommand{\InjAtt}{164}
@@ -64,7 +64,7 @@ directly, on a mechanical oracle that compiles and runs the code and reads its b
 from \texttt{strace}, never from text. Four findings show the control fails. First, the
 argument-inspection gate is bypassable: it blocks a persistence write \Nrace/\Nrace{}
 times head-on, yet a two-thread time-of-check-to-time-of-use (TOCTOU) race on its
-allow path defeats it at \RaceLo--\RaceHi\% per attempt across four runs, which approaches certainty under
+allow path defeats it at \RaceLo--\RaceHi\% per attempt across five runs, which approaches certainty under
 retry. Second, attacker-injected and self-driven behaviour do not collapse to one syscall
 footprint: they share \texttt{execve}, but \AutoEscape\% of self-driven destruction takes
 a direct \texttt{unlink}/\texttt{rmdir} path that an \texttt{execve}/\texttt{connect} gate
@@ -76,7 +76,8 @@ control against an adversary that chooses its own behaviour. We then build and b
 successor the failure implies: a default-deny filesystem allowlist over the Landlock LSM closes the
 same TOCTOU race to 0/\Nrace{} and governs \texttt{open}, \texttt{creat}, and \texttt{openat} at one
 kernel hook, where the seccomp gate races on its allow path and lets \texttt{open} and \texttt{creat}
-through. We then measure where that allowlist stops: it denies \texttt{execve} when configured to, but
+through, and it denies an \texttt{openat} submitted through an \texttt{io\_uring} ring that the seccomp
+gate never sees at all. We then measure where that allowlist stops: it denies \texttt{execve} when configured to, but
 a descriptor opened before the ruleset keeps writing through it, and UDP and raw sockets pass a TCP
 network ruleset untouched. Finally we characterize the contained process as a threat actor: denied on
 every step, a live agent enumerated an alternative at all 88 denied steps and gave up in 0 of 8 trials,
@@ -117,8 +118,10 @@ standard we report the following as findings, not activities.
 \begin{enumerate}[leftmargin=1.4em,itemsep=2pt]
 \item The argument-inspection gate is bypassable by a TOCTOU race on its allow path
 (Section~\ref{sec:toctou}).
-\item Attacker-driven and self-driven behaviour do not reduce to a single syscall footprint,
-so a gate scoped to one mechanism leaves the other's path open (Section~\ref{sec:coverage}).
+\item Attacker-driven and self-driven behaviour do not reduce to a single syscall footprint, so a
+gate scoped to one mechanism leaves the other's path open; and the gate is bypassed outright by an
+open submitted through \texttt{io\_uring}, which never reaches syscall entry
+(Section~\ref{sec:coverage}).
 \item The gate's selectivity rests on substring path-matching that admits false positives and
 is separately evadable (Section~\ref{sec:selectivity}).
 \item Behavioural attribution of the actor is not a control (Section~\ref{sec:attribution}).
@@ -186,8 +189,9 @@ imply precision the sample does not have. The gate's decision is not a stochasti
 no failure-rate interval; its determinism is a property to be stated, and its soundness is measured
 separately as coverage (Sections~\ref{sec:toctou}--\ref{sec:selectivity}). Every Part~I figure below is
 reproducible from committed source through \texttt{experiments/agentsec/reproduce.sh}, which rebuilds the
-binaries and re-checks the headline results (8 checks, all passing at the time of writing); the Part~II
-and III benchmarks reproduce through their own scripts (\texttt{landlock\_bench.sh}, \texttt{enum\_tree.py},
+binaries and re-checks the headline results (9 checks, all passing at the time of writing); the Part~II
+and III benchmarks reproduce through their own scripts (\texttt{landlock\_bench.sh}, which also runs
+the Landlock scope and \texttt{io\_uring} probes, plus \texttt{enum\_tree.py},
 \texttt{concealment\_capture.py}, \texttt{matrix\_analysis.py}, \texttt{telemetry\_probe.py}).
 
 \section{The argument-inspection gate is bypassable}\label{sec:toctou}
@@ -207,8 +211,8 @@ causes the supervisor to validate one path and the kernel to open another.
 
 We measured the effect with a two-thread target: one thread issues the \texttt{openat}, a second
 flips the shared path buffer. Across \Nrace{} attempts the evil path was opened despite the gate on
-\RaceLo\% of tries in the first run and between 19.8\% and \RaceHi\% in three independent rebuilds; the
-remainder split
+19.2\% of tries in the first run and between \RaceLo\% and \RaceHi\% across four independent rebuilds;
+the remainder split
 between benign opens and correct denials, and the three outcomes account for every trial. The
 existence of the bypass is a property of the mechanism and is host-independent; the per-attempt rate
 depends on scheduler behaviour and moved between runs, so we do not treat it as a fixed figure. Under
@@ -267,13 +271,49 @@ $[9.3,31.3]$) reaches its goal by a call an \texttt{execve}/\texttt{connect} gat
 The gap widens at the ABI. Blocking \texttt{execve} does not cover \texttt{execveat} on an anonymous
 descriptor via \texttt{memfd\_create}; blocking \texttt{connect} does not cover \texttt{sendto} or
 \texttt{sendmsg} on a UDP socket; and a single unblocked \texttt{io\_uring\_setup} lets an agent submit
-\texttt{openat}, \texttt{write}, \texttt{connect}, and \texttt{unlink} as ring operations that never
-reach the syscall-entry filter, defeating file and network coverage at once.
+file and network work as ring operations that never reach the syscall-entry filter.
 A blocklist cannot enumerate its way out of this; completeness requires inverting to a default-deny
 allowlist, and the only class this study could close as a small fixed set is execution
-(\texttt{execve}, \texttt{execveat}). We did not exercise every listed ABI path as a working exploit;
-the \texttt{unlink}/\texttt{rmdir} escape is measured on real artifacts, and the remainder are coverage
-gaps read from the filter definition and the syscall ABI.
+(\texttt{execve}, \texttt{execveat}).
+
+\paragraph{The asynchronous path, measured.} We exercised the \texttt{io\_uring} case as a working
+bypass rather than leaving it as a reading of the ABI. \texttt{iouring\_probe.c} opens the same
+persistence path twice in one process: once with \texttt{openat}, and once as an
+\texttt{IORING\_OP\_OPENAT} submitted through an established ring, using the raw ring interface and no
+helper library. Under the gate in persistence mode---which installs
+\texttt{SCMP\_ACT\_NOTIFY} on \texttt{openat}---the direct call is denied with \texttt{EPERM} and the
+supervisor counts the denial, while the ring submission opens the file and the file is on disk
+afterwards. The result is 20/20 identical across repeats:
+
+\begin{center}
+\begin{tabular}{llll}
+\toprule
+control & direct \texttt{openat} & ring \texttt{openat} & file created \\
+\midrule
+unprotected baseline & opened & opened & yes \\
+seccomp persist gate & denied (\texttt{EPERM}) & \textbf{opened} & \textbf{yes} \\
+Landlock allowlist & denied (\texttt{EACCES}) & denied (\texttt{EACCES}) & no \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The mechanism is the same one that makes the gate attractive and unsound at once: it sits at syscall
+entry, and an \texttt{io\_uring} operation is performed inside the kernel without traversing that
+entry. This is a second complete bypass of the same control, structurally unrelated to the TOCTOU race
+of Section~\ref{sec:toctou} and not fixable by removing the second argument read.
+
+The Landlock row is the answer to a question we had left open, and it goes the other way. Landlock
+mediates at the LSM hook rather than at syscall entry, and \texttt{io\_uring} performs submitted work
+under the submitting task's credentials, so the domain follows the operation onto the ring: the
+asynchronous open is denied exactly as the synchronous one is, and no file is created. We measured
+this for filesystem opens only, and it should not be read as blanket \texttt{io\_uring} coverage;
+Landlock implements none of the \texttt{io\_uring}-specific LSM hooks, so ring features that select a
+different credential or bypass the file path---registered personalities,
+\texttt{IORING\_OP\_URING\_CMD} device passthrough---are outside what this benchmark establishes.
+
+The \texttt{unlink}/\texttt{rmdir} escape is measured on real artifacts and the \texttt{io\_uring}
+bypass is measured here; the remaining ABI paths above are coverage gaps read from the filter
+definition and the syscall ABI, and we did not exercise them as exploits.
 
 One gap we expected to find is not there, and the check is worth reporting because the expectation is
 common. A filter scoped to one architecture's syscall numbers is usually assumed to let the compat
@@ -419,7 +459,8 @@ rest on Landlock alone, and the egress argument of Section~\ref{sec:enum} needs 
 A complete design pairs a Landlock filesystem allowlist with a distinct execution policy
 and an audited egress gateway. The race and coverage results are host-independent
 properties of the mechanisms; the seccomp win rate is scheduler-dependent, as in Section~\ref{sec:toctou},
-and has now been observed at 19.2\%, 19.8\%, 21.4\%, and 23.1\% across four independent rebuilds.
+and has ranged from \RaceLo\% to \RaceHi\% across five independent rebuilds, so we report the band
+rather than a point estimate.
 All measurements are one x86\_64 host at Landlock ABI~v7.
 
 \part{The agent as threat actor}
@@ -677,17 +718,21 @@ claim. The Landlock benchmark is one x86\_64 host at ABI~v7; its race-closure an
 are host-independent properties of the mechanism, while the seccomp win rate it is measured against is
 scheduler-dependent as above.
 
-Three limits of the Part~II control are measured rather than argued, and two more are not established
-either way. The measured ones are in Section~\ref{sec:landlock}: execution is unrestricted in our
-configuration because the ruleset does not handle it, not because Landlock cannot; a descriptor opened
-before the ruleset keeps its open-time rights; and UDP and raw sockets pass a TCP network ruleset. The
-unestablished ones are asynchronous submission and descriptor provenance. We did not run any
-experiment under \texttt{io\_uring}, so whether a Landlock domain follows filesystem work submitted
-through an established ring is not something our measurements decide, and Section~\ref{sec:coverage}'s
-\texttt{io\_uring} gap is stated for the seccomp gate only. Nor did we build the delegating supervisor
-that Section~\ref{sec:discussion} recommends; the descriptor-provenance problem is inferred from the
-pre-open measurement and the semantics of \texttt{SECCOMP\_IOCTL\_NOTIF\_ADDFD} rather than
-demonstrated end-to-end, and it is the first thing an implementation of that direction should test. The Part~III autopsy is one 7B local model at small scale---18 concealment
+Three limits of the Part~II control are measured rather than argued, all in
+Section~\ref{sec:landlock}: execution is unrestricted in our configuration because the ruleset does
+not handle it, not because Landlock cannot; a descriptor opened before the ruleset keeps its
+open-time rights; and UDP and raw sockets pass a TCP network ruleset. The \texttt{io\_uring} result
+of Section~\ref{sec:coverage} is bounded in a different way. It establishes that a Landlock domain
+follows an \texttt{openat} submitted through an established ring, on this kernel, for that one
+operation; it does not establish coverage of \texttt{io\_uring} generally. Landlock implements none
+of the \texttt{io\_uring}-specific LSM hooks, so a ring that selects a credential registered before
+the sandbox was entered, or that reaches a device through \texttt{IORING\_OP\_URING\_CMD}, is outside
+what we tested and should be assumed ungoverned until someone measures it.
+
+One more limit is inferred rather than demonstrated. We did not build the delegating supervisor that
+Section~\ref{sec:discussion} recommends, so the descriptor-provenance problem follows from the
+pre-open measurement plus the semantics of \texttt{SECCOMP\_IOCTL\_NOTIF\_ADDFD} rather than from an
+end-to-end run, and it is the first thing an implementation of that direction should test. The Part~III autopsy is one 7B local model at small scale---18 concealment
 artifacts, twelve timed generations per force, two trials per goal with denials simulated and nothing
 executed, and \AutoAtt{} autonomous artifacts---so its rates are sample-dependent and the stable shapes
 (no observed stop, mechanism concealment, no track-masking) are the findings, not the percentages. The gate's
@@ -741,7 +786,7 @@ second architecture.
 \paragraph{Reproducibility.} All code, data, and per-experiment results are committed in the
 accompanying artifact repository, \texttt{github.com/francose/llm-sandbox-cwe-research}.
 \texttt{experiments/agentsec/reproduce.sh} rebuilds
-the gate and the probes from source and re-checks the Part~I headline results (8 checks); the Part~II and
+the gate and the probes from source and re-checks the Part~I headline results (9 checks); the Part~II and
 III benchmarks reproduce through \texttt{landlock\_bench.sh}, whose third benchmark is the scope probe
 of Section~\ref{sec:landlock} (\texttt{landlock\_scope.c}), and the \texttt{enum\_tree.py},
 \texttt{concealment\_capture.py}, \texttt{matrix\_analysis.py}, and \texttt{telemetry\_probe.py} probes.

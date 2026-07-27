@@ -65,6 +65,19 @@ Three corrections to the earlier reading of this experiment:
    egress claim cannot rest on Landlock alone. UDP access rights are attributed to ABI v10, which is
    in no released kernel; this host runs the highest ABI it can and gets v7.
 
+## Benchmark 4 -- the same open, submitted asynchronously through io_uring
+
+| control | direct `openat` | ring `openat` | file created |
+|---|---|---|---|
+| unprotected baseline | opened | opened | yes |
+| seccomp persist gate | denied (EPERM) | **opened** | **yes** |
+| Landlock allowlist | denied (EACCES) | denied (EACCES) | no |
+
+The seccomp gate is bypassed outright -- `SCMP_ACT_NOTIFY` sits at syscall entry and the ring never
+goes there. Landlock follows the work onto the ring, because it hooks the LSM and `io_uring` runs
+submitted work under the submitter's credentials. Full write-up and the list of what this does *not*
+cover: `EXP_IOURING_RESULTS.md`.
+
 Scope of this benchmark: single x86_64 host, Landlock ABI v7; the coverage and race results are
 host-independent properties of the mechanisms, the seccomp win-rate is scheduler-dependent as in
-EXP-11 (four runs to date: 19.2%, 19.8%, 21.4%, 23.1%).
+EXP-11 (five runs to date, band 18.9%-23.1%).
