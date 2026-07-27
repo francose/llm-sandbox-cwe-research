@@ -728,6 +728,106 @@ prompt-controlled URL through \texttt{popen}$\rightarrow$\texttt{curl} (T1105 in
 T1071.001 web protocols, T1059~\cite{attack}). Whoever owns the URL owns what runs next; resource use does
 not carry that fact, and the network boundary does.
 
+\part{The composed sandbox under attack}
+
+\section{Five invariants, and where each is enforced}\label{sec:composed}
+
+Parts~I--III measured controls in isolation. A deployment runs them together, so the question a defender
+actually faces is whether an assembled sandbox holds under attack, and against what. We state five
+invariants and bind each to the layer that enforces it, rather than let ``zero violations'' quietly mean
+``we defined the invariants as whatever held'':
+
+\begin{itemize}[leftmargin=1.4em,itemsep=1pt]
+\item \textbf{I1 filesystem}: no write, create, or remove outside a scratch allowlist---enforced by the
+Landlock default-deny ruleset of Part~II.
+\item \textbf{I2 execution}: no \texttt{execve}/\texttt{execveat}---enforced by a seccomp
+\texttt{SCMP\_ACT\_ERRNO} deny, which is deterministic and has no \texttt{CONTINUE} allow path to race.
+\item \textbf{I3 network}: no off-host egress---enforced by an empty network namespace with no route, not
+by a policy layer. A mediating egress broker is named in the threat model but not built here, so we claim
+only ``no egress,'' not ``egress through the designated broker.''
+\item \textbf{I4 process tree}: the supervisor can drive the whole descendant tree to zero live
+processes---enforced by a host-owned \texttt{cgroup}~v2 (\texttt{cgroup.kill}).
+\item \textbf{I5 resources}: process count and memory stay under a cap---enforced by \texttt{cgroup}
+\texttt{pids.max}/\texttt{memory.max}.
+\end{itemize}
+
+I1--I3 need no privilege and we measure them here; I4--I5 require a writable cgroup, which the evaluation
+host does not delegate to an unprivileged user, so they are specified and scripted separately
+(Section~\ref{sec:killswitch}). The composed sandbox (\texttt{composed\_probe.c}) applies the three sound
+controls to itself and runs each attack in its own \texttt{fork} child---all layers are inherited across
+\texttt{fork}---reading the oracle from the kernel's errno and from ground truth on disk. These are
+hand-written probes: a probe issues a syscall or submits a ring operation; it is not a model.
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Invariant / attack & Result & Oracle \\
+\midrule
+I1 \texttt{openat} write outside scratch    & denied (\texttt{EACCES})     & path absent \\
+I1 \texttt{open} alias                       & denied (\texttt{EACCES})     & path absent \\
+I1 \texttt{creat} alias                      & denied (\texttt{EACCES})     & path absent \\
+I1 \texttt{io\_uring} \texttt{openat}        & denied (\texttt{EACCES})     & path absent \\
+I1 write inside scratch (control)            & succeeded                    & file written \\
+I1 write through a pre-domain descriptor     & \textbf{succeeded}           & sentinel leaked \\
+I2 \texttt{execve}                           & denied (\texttt{EPERM})      & --- \\
+I3 TCP \texttt{connect} off host             & denied (\texttt{ENETUNREACH})& no packet \\
+I3 UDP \texttt{sendto} off host              & denied (\texttt{ENETUNREACH})& no packet \\
+I3 raw \texttt{sendto} off host              & denied (\texttt{ENETUNREACH})& no packet \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The result is identical across five runs. Two points carry the section. First, the composition is
+strictly stronger than any single layer: the UDP and raw sockets that pass a Landlock TCP ruleset
+untouched (Section~\ref{sec:landlock}) are closed here, because I3 is enforced by the namespace and not by
+Landlock. Which layer governs a given invariant is the whole point---stacking them covers what each leaves
+open, and reading ``the sandbox is safe'' off any one layer is the Part~I error repeated. Second, one
+attack succeeds: a write through a descriptor opened \emph{before} the Landlock domain was entered. That
+is the pre-open hole of Section~\ref{sec:landlock}, and its survival in the composed sandbox is the
+measured form of a discipline requirement---a supervisor that hands the target a descriptor it opened
+outside the domain (the \texttt{ADDFD} delegation Part~I recommends is exactly such a hand-off) reopens I1
+unless that descriptor's rights are constrained. The invariant holds against every attack that acquires
+its access \emph{after} the domain is entered, which is the case the sandbox is there to govern.
+
+\section{Runtime memory mutation}\label{sec:memmut}
+
+The TOCTOU of Part~I flips the gate's pathname buffer with a sibling thread. The natural question is
+whether the defect is specific to that trick. It is not: the flaw is the second read the \texttt{CONTINUE}
+flag forces, so any writer that reaches the buffer in the window wins, and we show it from a second angle.
+A separate process, sharing no memory with the target, rewrites the buffer through
+\texttt{process\_vm\_writev} while the target's \texttt{openat} thread is parked on the notification; the
+target grants the writer access with \texttt{PR\_SET\_PTRACER}, which an attacker owning the target can
+do. Against the same gate the external writer opened the persistence path on 28.5--44.2\% of attempts
+across five runs of \Nrace{}, at least as often as the in-process thread
+(Section~\ref{sec:toctou}'s \RaceLo--\RaceHi\%). The other external mechanisms the literature names
+(\texttt{/proc/pid/mem}, a \texttt{ptrace} poke) write the same bytes to the same address in the same
+window; we do not restate one finding as several. The single variant that would add a property rather than
+a mechanism is \texttt{userfaultfd}, which lets the attacker \emph{pause} the faulting read and supply the
+page at a chosen moment, making the race deterministic rather than probabilistic; on this host it needs
+privilege (\texttt{/dev/userfaultfd} is root-only, \texttt{vm.unprivileged\_userfaultfd} is 0) and is left
+to the privileged step.
+
+The composed sandbox is immune to the identical external flip. Run against the Landlock target, the
+mutation opened the evil path 0 times in \Nrace{}: the flip only changes which \emph{denied} path is
+attempted, because the decision is taken at the LSM hook on the resolved object and there is no user-space
+check left to invalidate. Memory mutation defeats a control that decides in user space; it has nothing to
+invalidate once the decision moves into the kernel, which is the Part~I--to--Part~II argument restated at
+the level of the attack technique.
+
+\section{Process-tree termination and resource bounds}\label{sec:killswitch}
+
+I4 and I5 are enforced by a host-owned \texttt{cgroup}~v2, which the unprivileged evaluation host does not
+provide, so they are scripted in \texttt{killswitch.sh} and run as the one privileged step of the
+artifact. The property that matters for I4 is correctness under concurrent forking, and it is
+host-independent: a supervisor that terminates the agent by enumerating PIDs and signalling them races
+new \texttt{fork}s and migrations, whereas \texttt{cgroup.kill} terminates the whole subtree atomically
+and \texttt{cgroup.freeze} first quiesces it for inspection. The script measures that correctness
+outcome---whether the kill drives \texttt{cgroup.events} to \texttt{populated~0} where PID enumeration
+leaves survivors, what side effects (bytes sent, files written, outstanding \texttt{io\_uring}
+completions) land after activation, and what residue remains after teardown---and deliberately not a
+latency figure, because this host's non-\texttt{systemd}, emulated kernel would not support a credible
+one. A latency benchmark belongs on a native kernel and is future work.
+
 \section{Discussion}\label{sec:discussion}
 
 The result a defender should carry out of this study is a separation the marketing of syscall sandboxes

@@ -59,4 +59,25 @@ echo "-- Landlock allowlist (LSM hook, and io_uring carries the submitter's cred
 rm -f "$EVIL"; "$LL" "$ALLOWED" "$IOU" "$EVIL" 2>/dev/null | sed 's/^/   /'
 rm -f "$EVIL"
 
+echo; echo "===================================================================="
+echo "BENCHMARK 5 -- the composed sandbox (Landlock + seccomp-deny + empty netns), full matrix"
+echo "===================================================================="
+gcc -O2 "$HERE/composed_probe.c" -o "$OUT/composed_probe" && echo "  composed_probe ok"
+CP="$OUT/composed_probe"; PRE="$RUN/preopened_sentinel"
+rm -f "$EVIL" "$PRE"
+unshare -rn "$CP" "$ALLOWED" "$EVIL" "$PRE" 2>&1 | sed 's/^/   /'
+
+echo; echo "===================================================================="
+echo "BENCHMARK 6 -- runtime memory mutation from a separate process (process_vm_writev)"
+echo "===================================================================="
+gcc -O2 "$HERE/mem_extern.c" -o "$OUT/mem_extern" && echo "  mem_extern ok"
+MX="$OUT/mem_extern"
+echo "-- external process_vm_writev flip vs the seccomp CONTINUE gate (wins the re-read window):"
+rm -f "$EVIL" "$BENIGN"; "$SG" --persist "$MX" "$BENIGN" "$EVIL" "$N" 2>&1 | grep MEMEXTERN | sed 's/^/   /'
+echo "-- control: direct evil open, no race (gate must deny every attempt, win=0):"
+rm -f "$EVIL"; "$SG" --persist "$MX" "$EVIL" "$EVIL" 500 2>&1 | grep MEMEXTERN | sed 's/^/   /'
+echo "-- same external flip vs Landlock (immune: flip only changes which DENIED path is tried, win=0):"
+rm -f "$EVIL" "$BENIGN"; "$LL" "$ALLOWED" "$MX" "$BENIGN" "$EVIL" "$N" 2>&1 | grep MEMEXTERN | sed 's/^/   /'
+rm -f "$EVIL" "$BENIGN"
+
 rm -rf "$OUT" "$RUN"
