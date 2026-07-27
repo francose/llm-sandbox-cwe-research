@@ -85,7 +85,12 @@ escalating privilege for persistence and egress evasion for exfiltration, and it
 description omits the shell it spawns in 5 of 14 dangerous artifacts, so a self-description
 cannot be the trust boundary. Two frontier models, Claude and Gemini, confirm the premise at the model
 axis: neither refuses the injection, both emit the shell-out under direct injection at least as often as
-the local models, and indirect injection is vendor-split. The determinism of the
+the local models, and indirect injection is vendor-split. Assembled into one sandbox---the Landlock
+allowlist, a deterministic execution deny, and a routeless network namespace---the sound controls admit no
+filesystem, execution, or network violation of five stated invariants under a runtime-mutation and
+mechanism-bypass matrix, save a descriptor opened before the domain, and an external
+\texttt{process\_vm\_writev} mutation that defeats the user-space gate does not reach the composed
+sandbox. The determinism of the
 verdict is not soundness of the containment. What protects the host is coverage of the
 mechanisms an agent can use, and in every trial we ran a denied agent enumerated the
 alternatives rather than stopping.
@@ -136,7 +141,12 @@ the contained process: a denied agent enumerates alternatives and did not stop i
 (Section~\ref{sec:enum}),
 its force is not readable from cadence or from track-masking (Section~\ref{sec:matrix}), and its stated
 intent omits the mechanism it executes (Section~\ref{sec:conceal}), so behavioural attribution is not a
-control (Section~\ref{sec:attribution}). Sections~\ref{sec:discussion}--\ref{sec:related} give the
+control (Section~\ref{sec:attribution}). Part~IV assembles the sound controls into one sandbox and attacks
+it against five explicit invariants: it holds against every filesystem, execution, and network attack that
+acquires access after the domain is entered---the composition closes the UDP and raw egress a single
+Landlock layer leaves open---with one measured caveat, a descriptor opened before the domain
+(Section~\ref{sec:composed}), and the same external memory mutation that defeats the user-space gate does
+not touch it (Section~\ref{sec:memmut}). Sections~\ref{sec:discussion}--\ref{sec:related} give the
 implication for a threat model, the limits of the study, and the position against prior work.
 
 \part{The control fails}
@@ -941,17 +951,27 @@ the mechanisms it does not enumerate, and imprecise where it matches paths by su
 contains, when denied, looked for another way in every trial we ran rather than stopping. The defensible claim is narrow and worth
 stating plainly: certify the verdict, scope the coverage, and assume the agent will route around any single
 blocked path. The default-deny allowlist over a path-resolving mechanism that the failure implies is built
-and benchmarked here (Section~\ref{sec:landlock}); the open work is a supervisor with no second argument
-read---the complementary allow-path fix---and a repeat of these measurements against frontier models and a
-second architecture.
+and benchmarked here (Section~\ref{sec:landlock}), and assembled with a deterministic execution deny and a
+routeless network namespace into a composed sandbox (Part~IV). Against the tested runtime-mutation and
+mechanism-bypass matrix that sandbox admitted no filesystem, execution, or network violation of its stated
+invariants once the domain was entered---the one measured exception being a descriptor opened before it,
+which fixes the discipline a delegating supervisor must follow---and the external memory mutation that
+takes the user-space gate one time in three does not reach it. This is empirical evidence within the
+stated threat model, not a proof against unknown kernel or hypervisor flaws. The open work is a supervisor
+with no second argument read, a host-owned cgroup kill switch measured for latency on a native kernel, and
+a repeat against frontier models and a second architecture.
 
 \paragraph{Reproducibility.} All code, data, and per-experiment results are committed in the
 accompanying artifact repository, \texttt{github.com/francose/llm-sandbox-cwe-research}.
 \texttt{experiments/agentsec/reproduce.sh} rebuilds
 the gate and the probes from source and re-checks the Part~I headline results (9 checks); the Part~II and
 III benchmarks reproduce through \texttt{landlock\_bench.sh}, whose third benchmark is the scope probe
-of Section~\ref{sec:landlock} (\texttt{landlock\_scope.c}), and the \texttt{enum\_tree.py},
+of Section~\ref{sec:landlock} (\texttt{landlock\_scope.c}) and whose fifth and sixth are the composed
+sandbox (\texttt{composed\_probe.c}) and the external memory mutation (\texttt{mem\_extern.c}) of
+Part~IV, and the \texttt{enum\_tree.py},
 \texttt{concealment\_capture.py}, \texttt{matrix\_analysis.py}, and \texttt{telemetry\_probe.py} probes.
+The one privileged step, the cgroup kill switch of Section~\ref{sec:killswitch}, is \texttt{killswitch.sh}
+and must be run as root.
 
 \begin{thebibliography}{21}
 \bibitem{garfinkel03} T.~Garfinkel. Traps and pitfalls: practical problems in system call interposition based security tools. In \emph{Proc.\ Network and Distributed System Security Symposium (NDSS)}, 2003. Race conditions are Section~4.3.
