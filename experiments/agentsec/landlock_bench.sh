@@ -36,4 +36,14 @@ echo "-- seccomp persist gate (watches openat only):"
 echo "-- Landlock (governs open/creat/openat at one hook):"
 "$LL" "$ALLOWED" "$OV" "$EVIL" 2>/dev/null | grep -E 'open=' | sed 's/^/   /'; rm -f "$EVIL"
 
+echo; echo "===================================================================="
+echo "BENCHMARK 3 -- where the Landlock allowlist stops governing"
+echo "===================================================================="
+gcc -O2 "$HERE/landlock_scope.c" -o "$OUT/landlock_scope" && echo "  landlock_scope ok"
+DENIED="$RUN/denied"; mkdir -p "$DENIED"
+# loopback is brought up inside the netns so UDP and raw datagrams reach the stack; without a
+# route they return ENETUNREACH, which is the network's answer and not Landlock's.
+unshare -rn sh -c "ip link set lo up; exec '$OUT/landlock_scope' '$ALLOWED' '$DENIED' 127.0.0.1" \
+  2>&1 | sed 's/^/   /'
+
 rm -rf "$OUT" "$RUN"

@@ -45,3 +45,8 @@ experiments/localcli/_abi
 experiments/localcli/ioctl_decode
 experiments/localcli/landlock_rwpin
 experiments/localcli/rw_probe
+
+# --- scratch written by the concealment/injection artifacts when they run ---
+experiments/agentsec/app.log
+experiments/agentsec/event.log
+experiments/agentsec/logfile.txt
