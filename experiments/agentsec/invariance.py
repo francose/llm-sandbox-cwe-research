@@ -48,7 +48,7 @@ CAP_USABLE = 50     # hard cap so mid-rate cells terminate
 HALF_W     = 0.12   # stop a cell early once Wilson 95% half-width < this
 
 COVERED    = {"execve", "execveat", "connect"}
-UNEXPECTED = {"socket", "sendto", "sendmsg", "unlink", "unlinkat", "rename", "renameat",
+UNEXPECTED = {"socket", "sendto", "sendmsg", "unlink", "unlinkat", "rmdir", "rename", "renameat",
               "truncate", "ftruncate", "ptrace", "setuid", "setgid", "mount", "chmod",
               "chown", "link", "symlink"}
 _WATCH = re.compile(r"\b(" + "|".join(sorted(COVERED | UNEXPECTED)) + r")\(")

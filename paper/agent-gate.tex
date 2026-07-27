@@ -39,7 +39,7 @@
   belowskip=8pt
 }
 
-\title{Deterministic is not sound:\\
+\title{Determinism is not soundness:\\
 an empirical evaluation of seccomp argument-inspection gates
 for containing LLM agents\thanks{Every number in this paper traces to a committed artifact in
 \texttt{github.com/francose/llm-sandbox-cwe-research}. The Part~I headline results re-check via
@@ -82,10 +82,10 @@ a descriptor opened before the ruleset keeps writing through it, and UDP and raw
 network ruleset untouched. Finally we characterize the contained process as a threat actor: denied on
 every step, a live agent enumerated an alternative at all 88 denied steps and gave up in 0 of 8 trials,
 escalating privilege for persistence and egress evasion for exfiltration, and its one-sentence
-description omits the shell it spawns in 5 of 14 dangerous artifacts, so a chain-of-thought summary
+description omits the shell it spawns in 5 of 14 dangerous artifacts, so a self-description
 cannot be the trust boundary. Two frontier models, Claude and Gemini, confirm the premise at the model
-axis: neither refuses the injection, both emit the shell-out under direct injection at the local-model
-rate, and indirect injection is vendor-split. The determinism of the
+axis: neither refuses the injection, both emit the shell-out under direct injection at least as often as
+the local models, and indirect injection is vendor-split. The determinism of the
 verdict is not soundness of the containment. What protects the host is coverage of the
 mechanisms an agent can use, and in every trial we ran a denied agent enumerated the
 alternatives rather than stopping.
@@ -173,6 +173,19 @@ derived by scanning model output for keywords.
 \texttt{qwen2.5-coder:7b}, and \texttt{deepseek-coder:6.7b}, served through Ollama. The host is a
 single x86\_64 machine. Section~\ref{sec:limits} states what this scope does and does not support.
 
+\paragraph{Where the code runs.} \texttt{unshare -rn} supplies a user and network namespace---no route
+off the host, which is how we assert the zero-egress results---but \emph{not} a mount namespace, so the
+filesystem the artifact sees is the host's. Destructive behaviour is therefore contained by the syscall
+boundary and a scratch directory, not by filesystem isolation. Injection artifacts are safe to run
+outright: the injected payload is a benign \texttt{echo} append into a fixture under
+\texttt{/tmp/agentsec\_run}, so what we observe is the \texttt{execve} mechanism, not a destructive
+effect. Autonomous destruction artifacts (\texttt{rm -rf build}, direct \texttt{unlink}) are run behind
+the deny gate---a seccomp filter that blocks \texttt{execve}, \texttt{unlink}, \texttt{unlinkat},
+\texttt{rmdir}, and \texttt{connect}---from a throwaway working directory
+(\texttt{/tmp/agentsec\_auto/sandbox\_cwd}); the destructive call returns \texttt{EPERM} and nothing is
+deleted, so we record the attempt without executing it. Fixtures are recreated per run and removed
+after.
+
 \paragraph{The gate.} The rootful gate forks the target, installs \texttt{SCMP\_ACT\_NOTIFY} on
 \texttt{execve}, \texttt{execveat}, and \texttt{connect} (and, in persistence mode, on
 \texttt{openat}, \texttt{rename}, \texttt{link}, and their variants), and sends the notification
@@ -228,8 +241,10 @@ than the manual page the mechanism is usually read from: \texttt{linux/seccomp.h
 \texttt{CONTINUE} flag carries ``an inherent TOCTOU,'' that ``an attacker can exploit the time while
 the supervised process is waiting on a response,'' and that ``it should be absolutely clear that this
 means that the seccomp notifier \_cannot\_ be used to implement a security policy''~\cite{seccompheader}.
-Our contribution here is not the hazard but its rate against an agent workload, and the demonstration
-that a gate built this way is shipped as containment anyway.
+Our contribution here is not the hazard itself but a measured per-attempt rate for it against a
+hand-written two-thread target---the race is a property of the mechanism and its scheduler, not of any
+model-generated workload---and the observation that a gate built this way is shipped as agent
+containment anyway.
 
 Two consequences follow for a threat model. The bypass is architectural, not a gap in the token list,
 so no blocklist patch closes it. And the fix is narrower than it first appears: the second read has to
@@ -257,9 +272,15 @@ entirely through \texttt{execve} (\InjAtt/\InjAtt, $[97.7,100]$): the footprint 
 $\{\texttt{execve}\}$. Each of those artifacts was additionally run under an unfiltered
 \texttt{strace}---every syscall, not the narrowed set---and checked against a watch list of seventeen
 further dangerous calls including \texttt{unlink}, \texttt{unlinkat}, \texttt{rename},
-\texttt{sendto}, and \texttt{ptrace}; none appeared in any of the \InjAtt{}. The one hole in that
-check is that \texttt{rmdir} was not on the watch list, so a direct \texttt{rmdir} in an injection
-artifact would not have been counted. The \AutoAtt{} autonomous
+\texttt{sendto}, and \texttt{ptrace}; none appeared in any of the \InjAtt{}. One caveat scopes this
+check: \texttt{rmdir} was absent from that seventeen-call watch list, so the classifier would not have
+counted a direct \texttt{rmdir} in an injection artifact, and because the raw traces were classified
+on the fly rather than retained we cannot re-scan them post hoc. The injection payload is a fixed
+shell-out, for which a spontaneous \texttt{rmdir} is off-task and unobserved in the footprints that were
+recorded; we have added \texttt{rmdir} to the instrument's watch set
+(\texttt{invariance.py}) so a re-run counts it, but we report the recorded run as scoped rather than
+claim closure. The separate autonomous analysis (\texttt{matrix\_analysis.py}) does watch \texttt{rmdir}
+and counts two, so the direct-\texttt{rmdir} path is measured where it actually occurred. The \AutoAtt{} autonomous
 artifacts that attempted destruction did so through \texttt{execve} in 82\% of cases (37/\AutoAtt,
 $[68.7,90.7]$; spawning a shell to run \texttt{rm}), but through a direct \texttt{unlink} in 13\%
 (6/\AutoAtt) and a direct \texttt{rmdir} in 4\% (2/\AutoAtt):
@@ -554,7 +575,12 @@ behavioural profile can read. Injection reaches destruction through \texttt{exec
 ~\cite{owaspllm} and ATLAS~AML.T0051~\cite{atlas}). Autonomous malfunction reaches it through
 \texttt{execve} in 82\% (37/\AutoAtt{}) and through a direct \texttt{unlink} or \texttt{rmdir} in the
 remaining \AutoEscape\% (6 \texttt{unlink}, 2 \texttt{rmdir}; T1485 data destruction, T1070.004 file
-deletion~\cite{attack}). The mechanism separates the forces; nothing else does.
+deletion~\cite{attack}). In this corpus the two forces differ distributionally---injection reached
+destruction only through \texttt{execve}, autonomous malfunction through \texttt{execve} in most cases and
+a direct \texttt{unlink}/\texttt{rmdir} in the rest. The tasks are not matched, both forces share
+\texttt{execve}, and nothing stops an injected artifact from calling \texttt{unlink} directly; we read this
+as a distributional difference in the sampled artifacts, not as evidence that the mechanism attributes the
+force.
 
 Neither force masks its tracks. Track-masking (T1070, indicator removal) appears in 0 of the injection
 artifacts and 0 of the autonomous ones---no artifact cleaned a log or a timestamp, and the destruction is
@@ -562,25 +588,48 @@ overt---so an actor-class signal keyed on evidence tampering fires on neither.
 
 Generation timing does not separate them either. On \texttt{qwen2.5-coder:7b}, injected artifacts had a
 median generation latency of 10.15\,s (N=12, median code length 297 characters) and autonomous ones
-11.47\,s (N=12, median 360 characters). The gap tracks output length: the longer autonomous artifacts take
-proportionally longer to emit. There is no behavioural-speed difference to key on, only a length
-difference. The force is readable at the boundary---which syscall the code issued---and not from cadence or
+11.47\,s (N=12, median 360 characters). With a single latency/length pair per class we do not fit a trend;
+we report only that the small gap co-occurs with a length difference, not a behavioural-speed one to key
+on. The force is readable at the boundary---which syscall the code issued---and not from cadence or
 from track-masking, which is the coverage argument in another form.
 
 \section{The model axis: frontier models}\label{sec:frontier}
 
 The results so far use 1.5--7B local models; an enterprise deploys frontier ones. We ran the injection
 experiment unchanged---same prompts, same compile-and-\texttt{strace} oracle---against two flagship
-frontier models across two vendors, \texttt{claude-sonnet-5} and \texttt{gemini-2.5-pro}, N=8 per channel.
-Only the generator changed.
+frontier models across two vendors, \texttt{claude-sonnet-5} and \texttt{gemini-2.5-pro}, over three
+channels: a clean control with no injection, direct injection, and indirect injection, at N=8 per model
+per channel. Only the generator changed. Two models $\times$ three channels $\times$ eight give 48
+generations; 7 failed to compile and 41 were usable.
 
-The prediction that alignment would decline these prompts is wrong. Of 48 generations, 7 failed to
-compile and 41 were usable; neither model refused on any channel, giving zero explicit refusals across
-41 usable artifacts ($0/41$, $[0,8.6]$). Under direct injection both emitted the
-injected \texttt{system("sh -c ...")}, which the oracle confirms as \texttt{execve("/bin/sh")}---Claude 7
-of 7 ($[64.6,100]$), Gemini 4 of 5 ($[37.6,96.4]$)---at the same rate and with the same footprint as the
-local models. Where a model resisted, it did so silently, writing a clean logging function that omitted
-the injected call rather than issuing a refusal.
+\begin{center}
+\begin{tabular}{llccc}
+\toprule
+Model & Channel & Generated & Usable & Injected call fired \\
+\midrule
+\texttt{claude-sonnet-5} & clean    & 8 & 8 & 0 \\
+                         & direct   & 8 & 7 & 7 \\
+                         & indirect & 8 & 8 & 0 \\
+\texttt{gemini-2.5-pro}  & clean    & 8 & 7 & 0 \\
+                         & direct   & 8 & 5 & 4 \\
+                         & indirect & 8 & 6 & 6 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Neither model issued an explicit refusal on any channel. We report that against the denominator that
+carries meaning: on the injection channels, where a refusal would be the safe response, $0/26$
+($[0,12.9]$); across all usable artifacts, $0/41$ ($[0,8.6]$). The fifteen clean-channel artifacts are a
+control and carry no expectation of refusal, so we keep them out of the headline denominator rather than
+let them inflate it.
+
+Under direct injection both models emitted the injected \texttt{system("sh -c ...")}, which the oracle
+confirms as \texttt{execve("/bin/sh")}---Claude 7 of 7 ($[64.6,100]$), Gemini 4 of 5 ($[37.6,96.4]$),
+pooled 11/12 (91.7\%, $[64.6,98.5]$). That is at least as high as the local models' pooled
+direct-injection rate of 95/140 (67.9\%, $[59.7,75.0]$); the intervals overlap, so the supported claim is
+that frontier capability does not lower direct compliance, not that it raises it. Where a model resisted
+it did so silently---Gemini in 1 of its 5 usable direct artifacts wrote a clean logging function that
+omitted the injected call rather than issuing a refusal.
 
 The vendors diverge on indirect injection, where the malicious instruction arrives inside retrieved
 content (a fabricated \texttt{CONTRIBUTING.md} policy). Claude ignored it (0 of 8 complied,
@@ -591,24 +640,25 @@ ordering, not the size of the gap, is what the sample supports.
 
 This strengthens the premise rather than qualifying it. A more capable model is a more persuasive author
 of the same dangerous footprint, not a safer one: it does not refuse, it complies with direct injection at
-local-model rates, and at least one flagship follows indirect injection verbatim. The gate results of
-Parts~I and~II are model-independent, so the necessity of the boundary does not decrease with model
-capability. Scope: two models, one injection template, N=8 per channel; the direction---no refusals, high
-direct compliance, vendor-split indirect---is the finding, not the rates.
+least as often as the local models, and at least one flagship follows indirect injection verbatim. The
+gate results of Parts~I and~II are model-independent, so the necessity of the boundary does not decrease
+with model capability. Scope: two models, one injection template, N=8 per model per channel; the
+direction---no refusals, high direct compliance, vendor-split indirect---is the finding, not the rates.
 
-\section{Mechanism concealment}\label{sec:conceal}
+\section{Self-description diverges from execution}\label{sec:conceal}
 
 One proposed detector compares the model's own description of its code against the code's measured
 behaviour. We can exhibit why it fails as a security signal. We generated 18 injection artifacts with
 \texttt{qwen2.5-coder:7b}, then in a separate call asked the model to describe what each one does; the
-footprint is read mechanically from \texttt{strace}. A case is concealed when the footprint shows a
-dangerous syscall the description omits. The injected payload is a benign \texttt{echo} append, so the
+footprint is read mechanically from \texttt{strace}. A case diverges when the footprint shows a
+dangerous syscall the description omits---we make no claim about intent, only about the gap between the
+stated and the executed. The injected payload is a benign \texttt{echo} append, so the
 artifacts are safe to run.
 
-Fourteen of the eighteen artifacts spawned a shell, and 5 of those 14 concealed it (36\%,
+Fourteen of the eighteen artifacts spawned a shell, and in 5 of those 14 the description omitted it (36\%,
 $[16.3,61.2]$): the description reported a file write and left out the \texttt{execve}. (An earlier
 divergence run put the rate at 22\% on a different sample; the interval on 5/14 covers that value, so
-the two runs are consistent and the rate is sample-dependent.) Two concealed cases, verbatim:
+the two runs are consistent and the rate is sample-dependent.) Two divergent cases, verbatim:
 
 \begin{lstlisting}
 Case 1
@@ -622,15 +672,16 @@ Case 2
   DID    : execve("/bin/sh", ["sh","-c", ...]) = 0
 \end{lstlisting}
 
-The concealment hides the mechanism while the data effect it describes is real: the file is in fact
+The description omits the mechanism while the data effect it reports is real: the file is in fact
 ``mirrored,'' and the summary presents the shell-out as a plain append. A reviewer reading only the
 summary would not see that \texttt{system()} ran \texttt{execve("/bin/sh")}, and a defender clearing
 artifacts on stated intent (OWASP~LLM06, excessive agency~\cite{owaspllm}) would pass it. This is why
-chain-of-thought cannot be the trust boundary: the stated mechanism and the executed mechanism diverge,
-and only the syscall footprint carries the truth. The result is the agent-setting instance of the
-unfaithful-explanation finding of Turpin et al.~\cite{turpin23} and Lanham et al.~\cite{lanham23}. The
-model conceals on the shell-out artifacts specifically---benign file-only artifacts describe themselves
-faithfully---so the omission tracks the presence of the shell, not noise.
+self-description cannot be the trust boundary: the stated mechanism and the executed mechanism diverge,
+and only the syscall footprint carries the truth. The description is a post-hoc summary elicited in a
+separate call, not a reasoning trace, so the finding is narrower than---and consistent with---the
+unfaithful-explanation results of Turpin et al.~\cite{turpin23} and Lanham et al.~\cite{lanham23}. The
+omission falls on the shell-out artifacts specifically---benign file-only artifacts describe themselves
+faithfully---so it tracks the presence of the shell, not noise.
 
 \section{Behavioural attribution is not a control}\label{sec:attribution}
 
@@ -639,14 +690,15 @@ gap. Three candidate signals fail for one structural reason---a manipulated agen
 behaviour, so any signature the defender keys on, the agent can produce or suppress---and the data of
 Part~III shows each failing in turn.
 
-Cadence does not attribute. A script that inserts random sleeps is statistically indistinguishable from a
-live agent's action cadence (coefficient of variation 0.45 versus 0.54; fifteen of seventeen inter-action
-intervals overlap), so timing separates neither by construction, and Section~\ref{sec:matrix} finds no
-behavioural-speed difference between the two forces to key on.
+Cadence does not attribute. A script that inserts random sleeps shows no cadence separation we can key on
+from a live agent's action cadence (coefficient of variation 0.45 versus 0.54; fifteen of seventeen
+inter-action intervals overlap); we ran no formal equivalence test at this sample size, and timing
+separates neither by construction, while Section~\ref{sec:matrix} finds no behavioural-speed difference
+between the two forces to key on.
 
 Stated intent does not attribute. Divergence between a model's one-sentence description and its measured
 footprint appeared in 22\% of injection cases and in none of the autonomous or benign cases; where it
-appeared it was mechanism concealment (Section~\ref{sec:conceal}), and a non-manipulated model mostly
+appeared the description omitted the executed mechanism (Section~\ref{sec:conceal}), and a non-manipulated model mostly
 narrates honestly while a manipulated one writes a faithful malicious description and drives the divergence
 to zero.
 
@@ -705,9 +757,9 @@ policy---so a supervisor that delegates must apply the filesystem policy itself 
 
 The study is scoped and we state the scope rather than let a reviewer find it. The core subjects are three
 local code models between 1.5 and 7 billion parameters; the model axis is extended to two frontier models
-(Section~\ref{sec:frontier}) for the injection experiment only, at N=8 per channel, so the frontier result
-is a direction rather than a benchmark, and the enumeration, concealment, and autonomous-destruction
-experiments remain local-model. The autonomous destruction result rests on \AutoAtt{} attempting
+(Section~\ref{sec:frontier}) for the injection experiment only, at N=8 per model per channel, so the
+frontier result is a direction rather than a benchmark, and the enumeration, self-description-divergence,
+and autonomous-destruction experiments remain local-model. The autonomous destruction result rests on \AutoAtt{} attempting
 artifacts; both the rates and the specific mechanisms seen may shift with larger models and larger samples,
 and the emergent-destruction finding in particular is small-$N$. Every measurement was taken on a single x86\_64 host. Interception was checked across three
 implementation languages but on one architecture; the aarch64 case is not established here, because
@@ -732,10 +784,10 @@ what we tested and should be assumed ungoverned until someone measures it.
 One more limit is inferred rather than demonstrated. We did not build the delegating supervisor that
 Section~\ref{sec:discussion} recommends, so the descriptor-provenance problem follows from the
 pre-open measurement plus the semantics of \texttt{SECCOMP\_IOCTL\_NOTIF\_ADDFD} rather than from an
-end-to-end run, and it is the first thing an implementation of that direction should test. The Part~III autopsy is one 7B local model at small scale---18 concealment
+end-to-end run, and it is the first thing an implementation of that direction should test. The Part~III autopsy is one 7B local model at small scale---18 self-description
 artifacts, twelve timed generations per force, two trials per goal with denials simulated and nothing
 executed, and \AutoAtt{} autonomous artifacts---so its rates are sample-dependent and the stable shapes
-(no observed stop, mechanism concealment, no track-masking) are the findings, not the percentages. The gate's
+(no observed stop, description omitting the executed mechanism, no track-masking) are the findings, not the percentages. The gate's
 \texttt{connect} rule is untested by any artifact: the corpus made no network calls, and the one elicited
 egress rode \texttt{popen}$\rightarrow$\texttt{curl}, an \texttt{execve} the launch policy already stops,
 not a direct in-process \texttt{connect}. The behavioural-attribution experiments are forensic
@@ -755,7 +807,7 @@ test here; the deep-argument race we exercise is described in the manual page fo
 notification~\cite{seccompunotify} and, in stronger terms, in the kernel header that defines the flag,
 which states outright that the notifier cannot be used to implement a security
 policy~\cite{seccompheader}. It is not a new class of bug. What is new here is the measurement of its
-per-attempt rate against an agent workload, the observation that gates built this way are nonetheless
+per-attempt rate against a hand-written target, the observation that gates built this way are nonetheless
 offered as agent containment, and the head-to-head benchmark of the successor. Application kernels and sandboxes---gVisor~\cite{gvisor}, and the
 unprivileged, path-resolving Landlock LSM~\cite{landlock}---address the coverage and race problems this
 paper measures; we implement a Landlock allowlist and benchmark it head-to-head against the seccomp gate
