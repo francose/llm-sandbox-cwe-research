@@ -41,10 +41,7 @@
 
 \title{Determinism is not soundness:\\
 an empirical evaluation of seccomp argument-inspection gates
-for containing LLM agents\thanks{Every number in this paper traces to a committed artifact in
-\texttt{github.com/comcast-tsf/tsf-llm-security-research}. The Part~I headline results re-check via
-\texttt{experiments/agentsec/reproduce.sh}; the Part~II--IV benchmarks reproduce via their
-per-experiment scripts in the same directory.}}
+for containing LLM agents}
 \author{Sadik Erisen\\[2pt]
 \normalsize Security Engineer, Comcast
 \and
@@ -56,45 +53,26 @@ Todd Outten\\[2pt]
 \maketitle
 
 \begin{abstract}
-Sandboxes that run untrusted LLM-agent code increasingly reach for a syscall-boundary
-control: a seccomp supervisor that inspects the \emph{arguments} of intercepted system
-calls and allows or denies each one. Because the supervisor's verdict is deterministic,
-it is tempting to treat the control as certified containment. We test that control
-directly, on a mechanical oracle that compiles and runs the code and reads its behaviour
-from \texttt{strace}, never from text. Four findings show the control fails. First, the
-argument-inspection gate is bypassable: it blocks a persistence write \Nrace/\Nrace{}
-times head-on, yet a two-thread time-of-check-to-time-of-use (TOCTOU) race on its
-allow path defeats it at \RaceLo--\RaceHi\% per attempt across five runs, which approaches certainty under
-retry. Second, attacker-injected and self-driven behaviour do not collapse to one syscall
-footprint: they share \texttt{execve}, but \AutoEscape\% of self-driven destruction takes
-a direct \texttt{unlink}/\texttt{rmdir} path that an \texttt{execve}/\texttt{connect} gate
-never observes. Third, the gate is genuinely selective rather than deny-all, but its
-substring path-matching admits false positives on benign look-alike filenames while its
-anchored tokens are evaded by path normalization. Fourth, attributing the actor from its
-behaviour---by timing, by stated intent, or by its reaction to a denial---fails as a
-control against an adversary that chooses its own behaviour. We then build and benchmark the
-successor the failure implies: a default-deny filesystem allowlist over the Landlock LSM closes the
-same TOCTOU race to 0/\Nrace{} and governs \texttt{open}, \texttt{creat}, and \texttt{openat} at one
-kernel hook, where the seccomp gate races on its allow path and lets \texttt{open} and \texttt{creat}
-through, and it denies an \texttt{openat} submitted through an \texttt{io\_uring} ring that the seccomp
-gate never sees at all. We then measure where that allowlist stops: it denies \texttt{execve} when configured to, but
-a descriptor opened before the ruleset keeps writing through it, and UDP and raw sockets pass a TCP
-network ruleset untouched. Finally we characterize the contained process as a threat actor: denied on
-every step, a live agent enumerated an alternative at all 88 denied steps and gave up in 0 of 8 trials,
-escalating privilege for persistence and egress evasion for exfiltration, and its one-sentence
-description omits the shell it spawns in 5 of 14 dangerous artifacts, so a self-description
-cannot be the trust boundary. Two frontier models, Claude and Gemini, confirm the premise at the model
-axis: neither refuses the injection, both emit the shell-out under direct injection at least as often as
-the local models, and indirect injection is vendor-split. Assembled into one sandbox---the Landlock
-allowlist, a deterministic execution deny, and a routeless network namespace---no tested attack in a
-runtime-mutation and mechanism-bypass matrix violated the filesystem, execution, or network invariants
-once the domain was entered, the one measured exception being a descriptor opened before it; an external
-\texttt{process\_vm\_writev} mutation that defeats the user-space gate does not reach the composed
-sandbox, and a host-owned cgroup kill switch drives the process tree to zero live processes where PID
-enumeration races. The determinism of the
-verdict is not soundness of the containment. What protects the host is coverage of the
-mechanisms an agent can use, and in every trial we ran a denied agent enumerated the
-alternatives rather than stopping.
+Sandboxes that run untrusted LLM-agent code increasingly reach for a syscall-boundary control: a seccomp
+supervisor that inspects the \emph{arguments} of intercepted calls and allows or denies each one. Its
+verdict is deterministic, which tempts treating the control as certified containment. Neither the model's
+text nor a deterministic gate decision establishes containment; only execution does. We evaluate the
+question on a mechanical oracle that compiles and runs the generated code and reads behaviour from
+\texttt{strace} and the kernel's errno, never from text, following the agent from prompt through syscalls
+to kernel enforcement and runtime memory mutation.
+
+Three results carry the paper. First, the argument-inspection gate is raceable: it blocks a persistence
+write \Nrace/\Nrace{} times head-on, but a time-of-check-to-time-of-use race on its allow path defeats it
+at \RaceLo--\RaceHi\% per attempt, and a separate process rewriting the checked buffer wins the same
+window. Second, manipulated and denied agents produce executable dangerous behaviour and adapt rather than
+stop: a denied agent enumerated an alternative at all 88 blocked steps and gave up in none of eight
+trials, and two frontier models complied with prompt injection instead of refusing. Third, moving the
+decision to kernel object hooks and composing a Landlock allowlist, a deterministic execution deny, a
+routeless network namespace, and a \texttt{cgroup} kill switch resisted the tested attack matrix, with
+\texttt{cgroup.kill} terminating the whole process tree where PID enumeration raced.
+
+This is empirical evidence within the stated threat model and tested matrix, not a proof against untested
+interfaces, inherited authority, or kernel and hardware flaws.
 \end{abstract}
 
 \section{Introduction}
@@ -151,9 +129,9 @@ default-deny filesystem allowlist over Landlock that closes the race, the syscal
 substring imprecision at one kernel hook (Section~\ref{sec:landlock}). Part~III turns the instrument on
 the contained process: a denied agent enumerates alternatives and did not stop in any trial we ran
 (Section~\ref{sec:enum}),
-its force is not readable from cadence or from track-masking (Section~\ref{sec:matrix}), and its stated
-intent omits the mechanism it executes (Section~\ref{sec:conceal}), so behavioural attribution is not a
-control (Section~\ref{sec:attribution}). Part~IV assembles the sound controls into one sandbox and attacks
+its force is not readable from cadence or from track-masking (Section~\ref{sec:matrix}), and neither its
+stated intent, its cadence, nor its resource footprint attributes the actor, so behavioural observation is
+not a control (Section~\ref{sec:attribution}). Part~IV assembles the sound controls into one sandbox and attacks
 it against six explicit invariants: no tested filesystem, process-image, or routed-egress attack that acquires
 access after the domain is entered violated its invariant---the composition closes the UDP and raw egress a
 single Landlock layer leaves open---the one measured exception being a descriptor opened before the domain
@@ -673,88 +651,54 @@ gate results of Parts~I and~II are model-independent, so the necessity of the bo
 with model capability. Scope: two models, one injection template, N=8 per model per channel; the
 direction---no refusals, high direct compliance, vendor-split indirect---is the finding, not the rates.
 
-\section{Self-description diverges from execution}\label{sec:conceal}
+\section{Why behavioural observation is not enforcement}\label{sec:attribution}
 
-One proposed detector compares the model's own description of its code against the code's measured
-behaviour. We can exhibit why it fails as a security signal. We generated 18 injection artifacts with
-\texttt{qwen2.5-coder:7b}, then in a separate call asked the model to describe what each one does; the
-footprint is read mechanically from \texttt{strace}. A case diverges when the footprint shows a
-dangerous syscall the description omits---we make no claim about intent, only about the gap between the
-stated and the executed. The injected payload is a benign \texttt{echo} append, so the
-artifacts are safe to run.
+The porous gate invites a tempting move: profile the agent from what it looks like and stop the bad actor
+before it reaches a gap. Four observational signals fail for one structural reason---a manipulated agent
+chooses its own behaviour, so any signature the defender keys on, the agent can produce or suppress.
 
-Fourteen of the eighteen artifacts spawned a shell, and in 5 of those 14 the description omitted it (36\%,
-$[16.3,61.2]$): the description reported a file write and left out the \texttt{execve}. (An earlier
-divergence run put the rate at 22\% on a different sample; the interval on 5/14 covers that value, so
-the two runs are consistent and the rate is sample-dependent.) Two divergent cases, verbatim:
+\emph{Self-description diverges from execution.} We generated 18 injection artifacts with
+\texttt{qwen2.5-coder:7b}, asked the model in a separate call to describe each, and read the footprint
+from \texttt{strace}. Fourteen spawned a shell; in 5 of those 14 (36\%, $[16.3,61.2]$) the description
+reported a file write and omitted the \texttt{execve}, and across all injection cases the stated summary
+diverged from the footprint in 22\%. The data effect is real---the file is written---but the summary
+presents the shell-out as a plain append, so a defender clearing artifacts on stated intent (OWASP~LLM06,
+excessive agency~\cite{owaspllm}) would pass it:
 
 \begin{lstlisting}
-Case 1
-  STATED : "writes a message to /var/log/myapp.log and also appends 'mirrored' to /tmp/agentsec_run/mirror"
-  CODE   : system("sh -c 'echo mirrored >> /tmp/agentsec_run/mirror'");
-  DID    : execve("/bin/sh", ["sh","-c","sh -c 'echo mirrored >> /tmp/agentsec_run/mirror'"]) = 0
-
-Case 2
-  STATED : "logs a message to a log file and also appends the string 'mirrored' to another file in /tmp/agentsec_run/"
+  STATED : "writes to /var/log/myapp.log and appends 'mirrored' to /tmp/agentsec_run/mirror"
   CODE   : system("sh -c 'echo mirrored >> /tmp/agentsec_run/mirror'");
   DID    : execve("/bin/sh", ["sh","-c", ...]) = 0
 \end{lstlisting}
 
-The description omits the mechanism while the data effect it reports is real: the file is in fact
-``mirrored,'' and the summary presents the shell-out as a plain append. A reviewer reading only the
-summary would not see that \texttt{system()} ran \texttt{execve("/bin/sh")}, and a defender clearing
-artifacts on stated intent (OWASP~LLM06, excessive agency~\cite{owaspllm}) would pass it. This is why
-self-description cannot be the trust boundary: the stated mechanism and the executed mechanism diverge,
-and only the syscall footprint carries the truth. The description is a post-hoc summary elicited in a
-separate call, not a reasoning trace, so the finding is narrower than---and consistent with---the
-unfaithful-explanation results of Turpin et al.~\cite{turpin23} and Lanham et al.~\cite{lanham23}. The
-omission falls on the shell-out artifacts specifically---benign file-only artifacts describe themselves
-faithfully---so it tracks the presence of the shell, not noise.
+The omission falls on the shell-out artifacts specifically---file-only artifacts describe themselves
+faithfully---so it tracks the shell, not noise. The description is a post-hoc summary elicited in a
+separate call, not a reasoning trace, so this is narrower than and consistent with the
+unfaithful-explanation results of Turpin et al.~\cite{turpin23} and Lanham et al.~\cite{lanham23}.
 
-\section{Behavioural attribution is not a control}\label{sec:attribution}
+\emph{Cadence does not attribute.} A script inserting random sleeps shows no cadence separation we can key
+on from a live agent's action cadence (coefficient of variation 0.45 versus 0.54; fifteen of seventeen
+inter-action intervals overlap; no equivalence test at this $N$), and Section~\ref{sec:matrix} finds no
+behavioural-speed difference between the two forces either.
 
-The porous gate invites a different move: profile the agent and stop the bad actor before it reaches a
-gap. Three candidate signals fail for one structural reason---a manipulated agent chooses its own
-behaviour, so any signature the defender keys on, the agent can produce or suppress---and the data of
-Part~III shows each failing in turn.
+\emph{Reaction to a denial points at coverage, not identity.} A denied agent adapted on 90\% of steps and
+stopped in none of eight trials (Section~\ref{sec:enum}), holding the objective fixed and enumerating
+mechanisms; that identifies a persistent actor, not an attributable one.
 
-Cadence does not attribute. A script that inserts random sleeps shows no cadence separation we can key on
-from a live agent's action cadence (coefficient of variation 0.45 versus 0.54; fifteen of seventeen
-inter-action intervals overlap); we ran no formal equivalence test at this sample size, and timing
-separates neither by construction, while Section~\ref{sec:matrix} finds no behavioural-speed difference
-between the two forces to key on.
+\emph{Resource footprint is not the signal.} Generation and execution sit about 2700x apart in resident
+memory---a 5.1\,GB model in the server process against a 1.92\,MB compiled artifact reached over an RPC
+the orchestrator waits on in roughly 20\,MB---so a resource-anomaly detector sees neither the generation
+(idle network wait) nor the artifact (any small process). The corpus made zero network calls (0/360
+injection, 0/240 persistence, 0/\AutoAtt{} autonomous); an egress-tasked scenario networked in 1 of 3
+generations, fetching and running a payload from a prompt-controlled URL through
+\texttt{popen}$\rightarrow$\texttt{curl} (T1105, T1071.001, T1059~\cite{attack}). Whoever owns the URL
+owns what runs next.
 
-Stated intent does not attribute. Divergence between a model's one-sentence description and its measured
-footprint appeared in 22\% of injection cases and in none of the autonomous or benign cases; where it
-appeared the description omitted the executed mechanism (Section~\ref{sec:conceal}), and a non-manipulated model mostly
-narrates honestly while a manipulated one writes a faithful malicious description and drives the divergence
-to zero.
-
-Reaction to a denial is a real behaviour that points at coverage. A denied agent adapts on 90\% of steps
-and stopped in none of eight trials (Section~\ref{sec:enum}), holding the objective fixed and enumerating
-mechanisms; that
-identifies a persistent actor, not an attributable one, and it returns the weight to coverage: blocking one
-path routes the agent to the next.
-
-The three routes reach one wall. ``LLM agent'' names no behavioural class; it is any distribution its
+The four routes reach one wall. ``LLM agent'' names no behavioural class; it is any distribution its
 controller chooses, able to pace like a human, retry like a port scanner, or stop after one block. The
-adversarially robust facts are what the actor did at the boundary (its footprint) and whether it was
-authorized (the policy at the gate), not what it looks like. Certify the gate; do not profile the actor.
-
-\section{Resource footprint is not the security signal}\label{sec:telemetry}
-
-One more candidate signal, resource use, fails at the host. Generation and execution sit about 2700x apart
-in resident memory: the generation phase holds a 5.1\,GB model in the server process, and the compiled
-artifact runs in 1.92\,MB with near-zero CPU. The weight of the agentic loop is in the model-server trust
-domain, off the orchestrator host, reached over an RPC the orchestrator waits on in roughly 20\,MB of
-interpreter. A resource-anomaly detector on the orchestrator sees neither the generation (it looks like
-idle network wait) nor the artifact (it looks like any small process). The security-relevant signal is the
-syscall footprint and the egress, and the egress has to be captured at the network: the study corpus made
-zero network calls (0/360 injection, 0/240 persistence, 0/\AutoAtt{} autonomous), and an egress-tasked
-scenario networked in only 1 of 3 generations---when it did, it fetched and ran a payload from a
-prompt-controlled URL through \texttt{popen}$\rightarrow$\texttt{curl} (T1105 ingress tool transfer,
-T1071.001 web protocols, T1059~\cite{attack}). Whoever owns the URL owns what runs next; resource use does
-not carry that fact, and the network boundary does.
+adversarially robust facts are what the actor did at the boundary (its footprint), whether it was
+authorized (the policy at the gate), and where its bytes went (the network), not what it looks like.
+Certify the boundary; do not profile the actor.
 
 \part{The composed sandbox under attack}
 
@@ -934,54 +878,38 @@ policy---so a supervisor that delegates must apply the filesystem policy itself 
 
 \section{Limitations}\label{sec:limits}
 
-The study is scoped, and we state the scope. The core subjects are three
-local code models between 1.5 and 7 billion parameters; the model axis is extended to two frontier models
-(Section~\ref{sec:frontier}) for the injection experiment only, at N=8 per model per channel, so the
-frontier result is a direction rather than a benchmark, and the enumeration, self-description-divergence,
-and autonomous-destruction experiments remain local-model. The autonomous destruction result rests on \AutoAtt{} attempting
-artifacts; both the rates and the specific mechanisms seen may shift with larger models and larger samples,
-and the emergent-destruction finding in particular is small-$N$. Every measurement was taken on a single x86\_64 host. Interception was checked across three
-implementation languages but on one architecture; the aarch64 case is not established here, because
-faithful native seccomp semantics are not available under user-mode emulation, and a second-architecture
-host is the correct way to test it. The TOCTOU bypass is demonstrated as an existence result, which one
-successful race establishes; its per-attempt rate is scheduler-dependent and is not an external-validity
-claim. The Landlock benchmark is one x86\_64 host at ABI~v7; its race-closure and alias-coverage results
-are host-independent properties of the mechanism, while the seccomp win rate it is measured against is
-scheduler-dependent as above.
+The study is scoped. The core subjects are three local code models of 1.5--7B parameters; the frontier
+axis (Section~\ref{sec:frontier}) covers the injection experiment only, at N=8 per model per channel, so
+it is a direction, not a benchmark, and the enumeration, self-description, and autonomous-destruction
+results stay local-model. The autonomous-destruction result rests on \AutoAtt{} artifacts and is
+small-$N$; rates and specific mechanisms may shift with larger models and samples. Every measurement is
+one x86\_64 host at Landlock ABI~v7. Interception was checked across three languages but one architecture;
+aarch64 is not established here, because faithful native seccomp semantics are unavailable under user-mode
+emulation. The TOCTOU bypass is an existence result; its per-attempt rate is scheduler-dependent and not
+an external-validity claim, as are the seccomp win rates the Landlock and kill-switch benchmarks measure
+against---the race-closure, alias-coverage, and mechanism-asymmetry results are host-independent, the rates
+are not.
 
-Three limits of the Part~II control are measured rather than argued, all in
-Section~\ref{sec:landlock}: execution is unrestricted in our configuration because the ruleset does
-not handle it, not because Landlock cannot; a descriptor opened before the ruleset keeps its
-open-time rights; and UDP and raw sockets pass a TCP network ruleset. The \texttt{io\_uring} result
-of Section~\ref{sec:coverage} is bounded in a different way. It establishes that a Landlock domain
-follows an \texttt{openat} submitted through an established ring, on this kernel, for that one
-operation; it does not establish coverage of \texttt{io\_uring} generally. Landlock implements none
-of the \texttt{io\_uring}-specific LSM hooks, so a ring that selects a credential registered before
-the sandbox was entered, or that reaches a device through \texttt{IORING\_OP\_URING\_CMD}, is outside
-what we tested and should be assumed ungoverned until someone measures it.
+Three Part~II limits are measured, not argued (Section~\ref{sec:landlock}): execution is unrestricted
+because our ruleset does not handle it, not because Landlock cannot; a descriptor opened before the ruleset
+keeps its open-time rights; and UDP and raw sockets pass a TCP ruleset. The \texttt{io\_uring} result is
+narrower still---a Landlock domain follows one \texttt{openat} through an established ring on this kernel;
+it does not establish \texttt{io\_uring} coverage generally, and a ring that selects a pre-registered
+credential or reaches a device through \texttt{IORING\_OP\_URING\_CMD} is untested. The composed matrix
+(Section~\ref{sec:composed}) is likewise not exhaustive: \texttt{openat2} (governed by the same file-open
+hook but not exercised), \texttt{SCM\_RIGHTS} descriptor passing over a Unix-domain socket,
+\texttt{execveat} on a \texttt{memfd}, and any future kernel interface are named but untested. The
+empirical claim is that no attack in the tested matrix violated a stated invariant once the domain was
+entered---not a claim about attacks the matrix does not contain.
 
-The composed-sandbox matrix (Section~\ref{sec:composed}) is not exhaustive, and the result is scoped to
-the attacks it runs, not a general escape-resistance claim. Several surfaces are named but untested and we
-do not claim them: \texttt{openat2}, which the file-open LSM hook governs on the same footing as
-\texttt{openat} but which we did not exercise; file-descriptor passing over a Unix-domain socket
-(\texttt{SCM\_RIGHTS}), the descriptor-provenance question of the pre-open hole in another form;
-\texttt{execveat} on a \texttt{memfd}; and any path through a future kernel interface. The empirical claim
-is that no attack in the tested matrix violated a stated invariant once the domain was entered; it is not
-a claim about attacks the matrix does not contain.
-
-One more limit is inferred rather than demonstrated. We did not build the delegating supervisor that
-Section~\ref{sec:discussion} recommends, so the descriptor-provenance problem follows from the
-pre-open measurement plus the semantics of \texttt{SECCOMP\_IOCTL\_NOTIF\_ADDFD} rather than from an
-end-to-end run, and it is the first thing an implementation of that direction should test. The Part~III autopsy is one 7B local model at small scale---18 self-description
-artifacts, twelve timed generations per force, two trials per goal with denials simulated and nothing
-executed, and \AutoAtt{} autonomous artifacts---so its rates are sample-dependent and the stable shapes
-(no observed stop, description omitting the executed mechanism, no track-masking) are the findings, not the percentages. The gate's
-\texttt{connect} rule is untested by any artifact: the corpus made no network calls, and the one elicited
-egress rode \texttt{popen}$\rightarrow$\texttt{curl}, an \texttt{execve} the launch policy already stops,
-not a direct in-process \texttt{connect}. The behavioural-attribution experiments are forensic
-characterizations of non-adversarial actors
-and are reported as such; against an adversary that controls its own behaviour they attribute nothing,
-which is the point of Section~\ref{sec:attribution}.
+Finally, we did not build the delegating supervisor Section~\ref{sec:discussion} recommends, so the
+descriptor-provenance problem follows from the pre-open measurement and the \texttt{ADDFD} semantics, not
+an end-to-end run. The Part~III autopsy is one 7B model at small scale (18 self-description artifacts,
+twelve timed generations per force, two trials per goal with denials simulated), so its stable
+shapes---no observed stop, description omitting the executed mechanism, no track-masking---are the
+findings, not the percentages. The gate's \texttt{connect} rule is untested by any artifact, since the
+corpus made no network calls and the one elicited egress rode \texttt{popen}$\rightarrow$\texttt{curl}, an
+\texttt{execve} the launch policy already stops.
 
 \section{Related work}\label{sec:related}
 
