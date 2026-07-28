@@ -47,7 +47,7 @@
 \title{Determinism is not soundness:\\
 an empirical evaluation of seccomp argument-inspection gates
 for containing LLM agents\thanks{Every number in this paper traces to a committed artifact in
-\texttt{github.com/francose/llm-sandbox-cwe-research}. The Part~I headline results re-check via
+\texttt{github.com/comcast-tsf/tsf-llm-security-research}. The Part~I headline results re-check via
 \texttt{experiments/agentsec/reproduce.sh}; the Part~II--IV benchmarks reproduce via their
 per-experiment scripts in the same directory.}}
 \author{Sadik Erisen\\[2pt]
@@ -68,7 +68,7 @@ Todd Outten\\[2pt]
 
 \vspace{6pt}
 \noindent\footnotesize\emph{Every number in this paper traces to a committed artifact in
-\texttt{github.com/francose/llm-sandbox-cwe-research}. The Part~I headline results re-check via
+\texttt{github.com/comcast-tsf/tsf-llm-security-research}. The Part~I headline results re-check via
 \texttt{experiments/agentsec/reproduce.sh}; the Part~II--IV benchmarks reproduce via their
 per-experiment scripts in the same directory.}
 \normalsize
@@ -1006,7 +1006,7 @@ read, a latency benchmark for the kill switch on a native kernel, and a repeat a
 a second architecture.
 
 \paragraph{Reproducibility.} All code, data, and per-experiment results are committed in the
-accompanying artifact repository, \texttt{github.com/francose/llm-sandbox-cwe-research}.
+accompanying artifact repository, \texttt{github.com/comcast-tsf/tsf-llm-security-research}.
 \texttt{experiments/agentsec/reproduce.sh} rebuilds
 the gate and the probes from source and re-checks the Part~I headline results (9 checks); the Part~II and
 III benchmarks reproduce through \texttt{landlock\_bench.sh}, whose third benchmark is the scope probe
