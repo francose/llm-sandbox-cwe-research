@@ -86,11 +86,11 @@ description omits the shell it spawns in 5 of 14 dangerous artifacts, so a self-
 cannot be the trust boundary. Two frontier models, Claude and Gemini, confirm the premise at the model
 axis: neither refuses the injection, both emit the shell-out under direct injection at least as often as
 the local models, and indirect injection is vendor-split. Assembled into one sandbox---the Landlock
-allowlist, a deterministic execution deny, and a routeless network namespace---the sound controls admit no
-filesystem, execution, or network violation of five stated invariants under a runtime-mutation and
-mechanism-bypass matrix, save a descriptor opened before the domain, and an external
+allowlist, a deterministic execution deny, and a routeless network namespace---no tested attack in a
+runtime-mutation and mechanism-bypass matrix violated the filesystem, execution, or network invariants
+once the domain was entered, the one measured exception being a descriptor opened before it; an external
 \texttt{process\_vm\_writev} mutation that defeats the user-space gate does not reach the composed
-sandbox; a host-owned cgroup kill switch drives the process tree to zero live processes where PID
+sandbox, and a host-owned cgroup kill switch drives the process tree to zero live processes where PID
 enumeration races. The determinism of the
 verdict is not soundness of the containment. What protects the host is coverage of the
 mechanisms an agent can use, and in every trial we ran a denied agent enumerated the
@@ -115,6 +115,17 @@ verdict can be perfectly deterministic and still wrong, either because it inspec
 argument the kernel later re-reads, or because the dangerous action never passes through a
 watched call at all. Determinism bounds the \emph{variance} of the control; soundness would
 bound its \emph{coverage and correctness}, and coverage is where the containment fails.
+
+One principle organizes the results. A security decision taken in user space, on memory the target can
+rewrite, can be invalidated by the target---by a sibling thread, an external \texttt{process\_vm\_writev}
+write, or an operation that never reaches the checked syscall. A decision enforced in the kernel, against
+the resolved object, cannot be, because nothing in user space remains to invalidate. The
+argument-inspection gate decides in user space and is invalidated on all three counts; the Landlock
+allowlist, the network namespace, and the \texttt{cgroup} decide in the kernel and were not, across the
+same attack matrix. What follows is the measurement of that distinction across seccomp user notification,
+Landlock, \texttt{io\_uring}, runtime memory mutation, and process-tree control---not a proof that an
+agent cannot escape, which would require a threat model excluding kernel, hypervisor, firmware, and
+hardware flaws that this study does not attempt.
 
 We hold every claim to a mechanical standard. A statement that ``the agent attempted $X$''
 means a compiled program issued syscall $X$ under \texttt{strace} inside a rootless network
@@ -143,10 +154,10 @@ the contained process: a denied agent enumerates alternatives and did not stop i
 its force is not readable from cadence or from track-masking (Section~\ref{sec:matrix}), and its stated
 intent omits the mechanism it executes (Section~\ref{sec:conceal}), so behavioural attribution is not a
 control (Section~\ref{sec:attribution}). Part~IV assembles the sound controls into one sandbox and attacks
-it against five explicit invariants: it holds against every filesystem, execution, and network attack that
-acquires access after the domain is entered---the composition closes the UDP and raw egress a single
-Landlock layer leaves open---with one measured caveat, a descriptor opened before the domain
-(Section~\ref{sec:composed}), the same external memory mutation that defeats the user-space gate does
+it against five explicit invariants: no tested filesystem, execution, or network attack that acquires
+access after the domain is entered violated its invariant---the composition closes the UDP and raw egress a
+single Landlock layer leaves open---the one measured exception being a descriptor opened before the domain
+(Section~\ref{sec:composed}); the same external memory mutation that defeats the user-space gate does
 not touch it (Section~\ref{sec:memmut}), and a host-owned cgroup kill switch drives the process tree to
 zero live processes where PID enumeration races (Section~\ref{sec:killswitch}).
 Sections~\ref{sec:discussion}--\ref{sec:related} give the
@@ -799,8 +810,9 @@ attack succeeds: a write through a descriptor opened \emph{before} the Landlock 
 is the pre-open hole of Section~\ref{sec:landlock}, and its survival in the composed sandbox is the
 measured form of a discipline requirement---a supervisor that hands the target a descriptor it opened
 outside the domain (the \texttt{ADDFD} delegation Part~I recommends is exactly such a hand-off) reopens I1
-unless that descriptor's rights are constrained. The invariant holds against every attack that acquires
-its access \emph{after} the domain is entered, which is the case the sandbox is there to govern.
+unless that descriptor's rights are constrained. Every attack in the matrix that acquired its access
+\emph{after} the domain was entered was denied; we claim the invariant for that tested class, and by
+construction for access acquired after entry, not as a general property of the composition.
 
 \section{Runtime memory mutation}\label{sec:memmut}
 
@@ -820,8 +832,8 @@ page at a chosen moment, making the race deterministic rather than probabilistic
 privilege (\texttt{/dev/userfaultfd} is root-only, \texttt{vm.unprivileged\_userfaultfd} is 0) and is left
 to the privileged step.
 
-The composed sandbox is immune to the identical external flip. Run against the Landlock target, the
-mutation opened the evil path 0 times in \Nrace{}: the flip only changes which \emph{denied} path is
+The composed sandbox denied the identical external flip on every attempt. Run against the Landlock target,
+the mutation opened the evil path 0 times in \Nrace{}: the flip only changes which \emph{denied} path is
 attempted, because the decision is taken at the LSM hook on the resolved object and there is no user-space
 check left to invalidate. Memory mutation defeats a control that decides in user space; it has nothing to
 invalidate once the decision moves into the kernel.
@@ -861,7 +873,7 @@ between the trigger and \texttt{populated~0}. It reaches quiescence with no surv
 counter advancing 0 over 0.7\,s---so the supervisor can capture state without the tree racing it. The
 resource caps bound the tree: \texttt{pids.max} held the population at 20 against a tree trying to exceed
 it (2078 fork denials), and \texttt{memory.max} \texttt{OOM}-killed a process allocating four times its
-limit inside the cgroup with the host unaffected. I4 and I5 hold.
+limit inside the cgroup with the host unaffected. Under these tests, I4 and I5 held.
 
 \section{Discussion}\label{sec:discussion}
 
@@ -915,6 +927,15 @@ operation; it does not establish coverage of \texttt{io\_uring} generally. Landl
 of the \texttt{io\_uring}-specific LSM hooks, so a ring that selects a credential registered before
 the sandbox was entered, or that reaches a device through \texttt{IORING\_OP\_URING\_CMD}, is outside
 what we tested and should be assumed ungoverned until someone measures it.
+
+The composed-sandbox matrix (Section~\ref{sec:composed}) is not exhaustive, and the result is scoped to
+the attacks it runs, not a general escape-resistance claim. Several surfaces are named but untested and we
+do not claim them: \texttt{openat2}, which the file-open LSM hook governs on the same footing as
+\texttt{openat} but which we did not exercise; file-descriptor passing over a Unix-domain socket
+(\texttt{SCM\_RIGHTS}), the descriptor-provenance question of the pre-open hole in another form;
+\texttt{execveat} on a \texttt{memfd}; and any path through a future kernel interface. The empirical claim
+is that no attack in the tested matrix violated a stated invariant once the domain was entered; it is not
+a claim about attacks the matrix does not contain.
 
 One more limit is inferred rather than demonstrated. We did not build the delegating supervisor that
 Section~\ref{sec:discussion} recommends, so the descriptor-provenance problem follows from the
@@ -977,9 +998,9 @@ contains, when denied, looked for another way in every trial we ran rather than 
 stating plainly: certify the verdict, scope the coverage, and assume the agent will route around any single
 blocked path. The default-deny allowlist over a path-resolving mechanism that the failure implies is built
 and benchmarked here (Section~\ref{sec:landlock}), and assembled with a deterministic execution deny and a
-routeless network namespace into a composed sandbox (Part~IV). Against the tested runtime-mutation and
-mechanism-bypass matrix that sandbox admitted no filesystem, execution, or network violation of its stated
-invariants once the domain was entered---the one measured exception being a descriptor opened before it,
+routeless network namespace into a composed sandbox (Part~IV). Across the tested runtime-mutation and
+mechanism-bypass matrix, no attack violated that sandbox's filesystem, execution, or network invariants
+once the domain was entered---the one measured exception being a descriptor opened before it,
 which fixes the discipline a delegating supervisor must follow---and the external memory mutation that
 takes the user-space gate on 28.5--44.2\% of attempts does not reach it. This is empirical evidence within the
 stated threat model, not a proof against unknown kernel or hypervisor flaws. Its external \texttt{cgroup}
