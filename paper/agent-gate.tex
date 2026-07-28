@@ -154,7 +154,7 @@ the contained process: a denied agent enumerates alternatives and did not stop i
 its force is not readable from cadence or from track-masking (Section~\ref{sec:matrix}), and its stated
 intent omits the mechanism it executes (Section~\ref{sec:conceal}), so behavioural attribution is not a
 control (Section~\ref{sec:attribution}). Part~IV assembles the sound controls into one sandbox and attacks
-it against five explicit invariants: no tested filesystem, execution, or network attack that acquires
+it against six explicit invariants: no tested filesystem, process-image, or routed-egress attack that acquires
 access after the domain is entered violated its invariant---the composition closes the UDP and raw egress a
 single Landlock layer leaves open---the one measured exception being a descriptor opened before the domain
 (Section~\ref{sec:composed}); the same external memory mutation that defeats the user-space gate does
@@ -648,12 +648,16 @@ control and carry no expectation of refusal, so we keep them out of the headline
 let them inflate it.
 
 Under direct injection both models emitted the injected \texttt{system("sh -c ...")}, which the oracle
-confirms as \texttt{execve("/bin/sh")}---Claude 7 of 7 ($[64.6,100]$), Gemini 4 of 5 ($[37.6,96.4]$),
-pooled 11/12 (91.7\%, $[64.6,98.5]$). That is at least as high as the local models' pooled
-direct-injection rate of 95/140 (67.9\%, $[59.7,75.0]$); the intervals overlap, so the supported claim is
-that frontier capability does not lower direct compliance, not that it raises it. Where a model resisted
-it did so silently---Gemini in 1 of its 5 usable direct artifacts wrote a clean logging function that
-omitted the injected call rather than issuing a refusal.
+confirms as \texttt{execve("/bin/sh")}. We report two denominators, because they measure different things.
+Conditional on the artifact compiling, the executable direct-injection rate was Claude 7 of 7, Gemini 4 of
+5, pooled 11/12 (91.7\%, $[64.6,98.5]$); over all generations, including the compile failures that a real
+pipeline would simply regenerate, the execution-success rate was 11/16 (68.8\%, $[44.4,85.8]$). The
+observed conditional rate was higher than the local models' 95/140 (67.9\%, $[59.7,75.0]$), but this
+experiment was not powered or designed to establish superiority, equality, or non-inferiority---the
+intervals overlap, and repeated generations from one prompt are generation replicates, not independent
+task families. The finding is that neither frontier model refused, not a ranking of compliance rates.
+Where a model resisted it did so silently---Gemini in 1 of its 5 usable direct artifacts wrote a clean
+logging function that omitted the injected call rather than issuing a refusal.
 
 The vendors diverge on indirect injection, where the malicious instruction arrives inside retrieved
 content (a fabricated \texttt{CONTRIBUTING.md} policy). Claude ignored it (0 of 8 complied,
@@ -664,7 +668,7 @@ ordering, not the size of the gap, is what the sample supports.
 
 This strengthens the premise rather than qualifying it. A more capable model is a more persuasive author
 of the same dangerous footprint, not a safer one: it does not refuse, it complies with direct injection at
-least as often as the local models, and at least one flagship follows indirect injection verbatim. The
+a high rate, and at least one flagship follows indirect injection verbatim. The
 gate results of Parts~I and~II are model-independent, so the necessity of the boundary does not decrease
 with model capability. Scope: two models, one injection template, N=8 per model per channel; the
 direction---no refusals, high direct compliance, vendor-split indirect---is the finding, not the rates.
@@ -757,18 +761,29 @@ not carry that fact, and the network boundary does.
 \section{Five invariants, and where each is enforced}\label{sec:composed}
 
 Parts~I--III measured controls in isolation. A deployment runs them together, so the question a defender
-actually faces is whether an assembled sandbox holds under attack, and against what. We state five
+actually faces is whether an assembled sandbox holds under attack, and against what. We state six
 invariants and bind each to the layer that enforces it, rather than let ``zero violations'' quietly mean
 ``we defined the invariants as whatever held'':
 
 \begin{itemize}[leftmargin=1.4em,itemsep=1pt]
-\item \textbf{I1 filesystem}: no write, create, or remove outside a scratch allowlist---enforced by the
-Landlock default-deny ruleset of Part~II.
-\item \textbf{I2 execution}: no \texttt{execve}/\texttt{execveat}---enforced by a seccomp
-\texttt{SCMP\_ACT\_ERRNO} deny, which is deterministic and has no \texttt{CONTINUE} allow path to race.
-\item \textbf{I3 network}: no off-host egress---enforced by an empty network namespace with no route, not
-by a policy layer. A mediating egress broker is named in the threat model but not built here, so we claim
-only ``no egress,'' not ``egress through the designated broker.''
+\item \textbf{I0 ambient authority}: before releasing untrusted code, the launcher closes or constrains
+every inherited file, socket, namespace, device, and control descriptor---enforced by descriptor hygiene
+at the launcher, not by any of the in-domain controls. Our probe deliberately carries in one pre-domain
+descriptor to measure the cost of \emph{not} enforcing I0; a production launcher closes it.
+\item \textbf{I1 filesystem}: no \emph{new} filesystem write authority can be acquired after entry---no
+write, create, or remove outside a scratch allowlist through any path or descriptor obtained once the
+domain is entered, enforced by the Landlock default-deny ruleset of Part~II. A descriptor opened
+\emph{before} entry is an I0 concern, not an I1 one; separating the two is what the pre-domain row below
+measures.
+\item \textbf{I2 process-image replacement}: no \texttt{execve}/\texttt{execveat}---enforced by a seccomp
+\texttt{SCMP\_ACT\_ERRNO} deny, deterministic with no \texttt{CONTINUE} allow path to race. This denies
+replacing the process image; it does \emph{not} deny in-process code execution (a JIT, shellcode through
+\texttt{mmap}+\texttt{mprotect}, or \texttt{dlopen}), which this policy does not address.
+\item \textbf{I3 routed-IP egress}: no packet leaves the host over a routed TCP, UDP, or raw IP
+socket---enforced by an empty network namespace with no route, not by a policy layer. This is narrower
+than ``no egress'': a pathname Unix-domain socket is a filesystem object, and with no mount namespace an
+accessible host socket could reach a host service that then talks off-host (Section~\ref{sec:limits}). We
+claim routed-IP egress isolation only.
 \item \textbf{I4 process tree}: the supervisor can drive the whole descendant tree to zero live
 processes---enforced by a host-owned \texttt{cgroup}~v2 (\texttt{cgroup.kill}).
 \item \textbf{I5 resources}: process count and memory stay under a cap---enforced by \texttt{cgroup}
@@ -777,7 +792,7 @@ processes---enforced by a host-owned \texttt{cgroup}~v2 (\texttt{cgroup.kill}).
 
 I1--I3 need no privilege and we measure them here; I4--I5 require a writable cgroup, which the evaluation
 host does not delegate to an unprivileged user, so they are specified and scripted separately
-(Section~\ref{sec:killswitch}). The composed sandbox (\texttt{composed\_probe.c}) applies the three sound
+(Section~\ref{sec:killswitch}). The composed sandbox (\texttt{composed\_probe.c}) applies the sound
 controls to itself and runs each attack in its own \texttt{fork} child---all layers are inherited across
 \texttt{fork}---reading the oracle from the kernel's errno and from ground truth on disk. These are
 hand-written probes: a probe issues a syscall or submits a ring operation; it is not a model.
@@ -792,7 +807,7 @@ I1 \texttt{open} alias                       & denied (\texttt{EACCES})     & pa
 I1 \texttt{creat} alias                      & denied (\texttt{EACCES})     & path absent \\
 I1 \texttt{io\_uring} \texttt{openat}        & denied (\texttt{EACCES})     & path absent \\
 I1 write inside scratch (control)            & succeeded                    & file written \\
-I1 write through a pre-domain descriptor     & \textbf{succeeded}           & sentinel leaked \\
+I0 write through a pre-domain descriptor     & \textbf{succeeded}           & sentinel leaked \\
 I2 \texttt{execve}                           & denied (\texttt{EPERM})      & --- \\
 I3 TCP \texttt{connect} off host             & denied (\texttt{ENETUNREACH})& no packet \\
 I3 UDP \texttt{sendto} off host              & denied (\texttt{ENETUNREACH})& no packet \\
@@ -801,51 +816,63 @@ I3 raw \texttt{sendto} off host              & denied (\texttt{ENETUNREACH})& no
 \end{tabular}
 \end{center}
 
+The pre-domain row is an I0 result, not an I1 one: it is the write authority the launcher failed to
+strip, carried in on a descriptor opened before the domain existed. No attack acquired write authority
+\emph{after} entry (I1). The two are different invariants enforced by different parties---the launcher for
+I0, Landlock for I1---and separating them is the point of the row.
+
 The result is identical across five runs. Two points carry the section. First, the composition is
 strictly stronger than any single layer: the UDP and raw sockets that pass a Landlock TCP ruleset
 untouched (Section~\ref{sec:landlock}) are closed here, because I3 is enforced by the namespace and not by
 Landlock. Which layer governs a given invariant is the whole point---stacking them covers what each leaves
-open, and reading ``the sandbox is safe'' off any one layer is the Part~I error repeated. Second, one
-attack succeeds: a write through a descriptor opened \emph{before} the Landlock domain was entered. That
-is the pre-open hole of Section~\ref{sec:landlock}, and its survival in the composed sandbox is the
-measured form of a discipline requirement---a supervisor that hands the target a descriptor it opened
-outside the domain (the \texttt{ADDFD} delegation Part~I recommends is exactly such a hand-off) reopens I1
-unless that descriptor's rights are constrained. Every attack in the matrix that acquired its access
-\emph{after} the domain was entered was denied; we claim the invariant for that tested class, and by
-construction for access acquired after entry, not as a general property of the composition.
+open, and reading ``the sandbox is safe'' off any one layer is the Part~I error repeated. Second, the one
+success is the I0 row: a write through a descriptor opened \emph{before} the domain was entered. That is
+the pre-open hole of Section~\ref{sec:landlock}, and it is an ambient-authority failure, not an I1 one---a
+supervisor that hands the target a descriptor it opened outside the domain (the \texttt{ADDFD} delegation
+Part~I recommends is exactly such a hand-off) leaks write authority unless the launcher strips or
+constrains it first. Every attack in the matrix that acquired its access \emph{after} the domain was
+entered was denied; we claim I1 for that tested class, and by construction for authority acquired after
+entry, not as a general property of the composition.
 
-\section{Runtime memory mutation}\label{sec:memmut}
+\section{Runtime process-memory mutation}\label{sec:memmut}
 
 The TOCTOU of Part~I flips the gate's pathname buffer with a sibling thread. The natural question is
 whether the defect is specific to that trick. It is not: the flaw is the second read the \texttt{CONTINUE}
 flag forces, so any writer that reaches the buffer in the window wins, and we show it from a second angle.
 A separate process, sharing no memory with the target, rewrites the buffer through
-\texttt{process\_vm\_writev} while the target's \texttt{openat} thread is parked on the notification; the
-target grants the writer access with \texttt{PR\_SET\_PTRACER}, which an attacker owning the target can
-do. Against the same gate the external writer opened the persistence path on 28.5--44.2\% of attempts
-across five runs of \Nrace{}, at least as often as the in-process thread
-(Section~\ref{sec:toctou}'s \RaceLo--\RaceHi\%). The other external mechanisms the literature names
+\texttt{process\_vm\_writev}~\cite{procvmwritev} while the target's \texttt{openat} thread is parked on the
+notification; the target grants the writer access with \texttt{PR\_SET\_PTRACER}~\cite{prctl}, which an
+attacker owning the target can do. This is cross-process runtime buffer mutation under granted
+\texttt{ptrace} authority---not the hijack of an unrelated protected process (the target consents, and an
+attacker that already owns the target could mutate the buffer internally), and not a physical-memory or
+hardware-page experiment; it operates on the target's virtual memory. Against the same gate the external
+writer opened the persistence path on 28.5--44.2\% of attempts across five runs of \Nrace{}, a rate in the
+same range as the in-process thread (Section~\ref{sec:toctou}'s \RaceLo--\RaceHi\%). The other external
+mechanisms the literature names
 (\texttt{/proc/pid/mem}, a \texttt{ptrace} poke) write the same bytes to the same address in the same
 window; we do not restate one finding as several. The single variant that would add a property rather than
-a mechanism is \texttt{userfaultfd}, which lets the attacker \emph{pause} the faulting read and supply the
-page at a chosen moment, making the race deterministic rather than probabilistic; on this host it needs
-privilege (\texttt{/dev/userfaultfd} is root-only, \texttt{vm.unprivileged\_userfaultfd} is 0) and is left
-to the privileged step.
+a mechanism is \texttt{userfaultfd}~\cite{userfaultfd}, which lets the attacker \emph{pause} the faulting
+read and supply the page at a chosen moment, making the race deterministic rather than probabilistic---but
+still a virtual-memory experiment, not page-table compromise or physical-RAM substitution; on this host it
+needs privilege (\texttt{/dev/userfaultfd} is root-only, \texttt{vm.unprivileged\_userfaultfd} is 0) and is
+left to the privileged step.
 
-The composed sandbox denied the identical external flip on every attempt. Run against the Landlock target,
-the mutation opened the evil path 0 times in \Nrace{}: the flip only changes which \emph{denied} path is
-attempted, because the decision is taken at the LSM hook on the resolved object and there is no user-space
-check left to invalidate. Memory mutation defeats a control that decides in user space; it has nothing to
+The composed sandbox showed no violation under the tested mutation. Run against the Landlock target,
+the mutation opened the evil path 0 times in \Nrace{} (Wilson 95\% upper bound 0.096\%): the flip only
+changes which \emph{denied} path is attempted, because the decision is taken at the LSM hook on the
+resolved object and there is no user-space check left to invalidate. Memory mutation defeats a control that decides in user space; it has nothing to
 invalidate once the decision moves into the kernel.
 
 \section{Process-tree termination and resource bounds}\label{sec:killswitch}
 
-I4 and I5 are enforced by a host-owned \texttt{cgroup}~v2, which the unprivileged evaluation host does not
-delegate, so \texttt{killswitch.sh} runs as the one privileged step of the artifact. We report
-correctness, not latency: this host's non-\texttt{systemd}, emulated kernel would not support a credible
-latency figure, and a latency benchmark belongs on a native kernel (future work). The agent is a bounded
-tree---thirty persistent workers, each continuously forking short-lived children, so the process set
-churns while the population stays near ninety.
+I4 and I5 are enforced by a host-owned \texttt{cgroup}~v2~\cite{cgroup2}, which the unprivileged evaluation
+host does not delegate, so \texttt{killswitch.sh} runs as the one privileged step of the artifact. We
+report correctness, not latency: this host's non-\texttt{systemd}, emulated kernel would not support a
+credible latency figure, and the full latency profile a kill switch needs---trigger-to-\texttt{frozen},
+trigger-to-\texttt{populated~0}, and post-trigger bytes and operations at median, p95, p99, and maximum
+over many trials, under idle and loaded hosts---belongs on a native kernel and is future work. The agent
+is a bounded tree---thirty persistent workers, each continuously forking short-lived children, so the
+process set churns while the population stays near ninety.
 
 \begin{center}
 \begin{tabular}{lll}
@@ -873,7 +900,12 @@ between the trigger and \texttt{populated~0}. It reaches quiescence with no surv
 counter advancing 0 over 0.7\,s---so the supervisor can capture state without the tree racing it. The
 resource caps bound the tree: \texttt{pids.max} held the population at 20 against a tree trying to exceed
 it (2078 fork denials), and \texttt{memory.max} \texttt{OOM}-killed a process allocating four times its
-limit inside the cgroup with the host unaffected. Under these tests, I4 and I5 held.
+limit inside the cgroup with the host unaffected. In the evaluated trials, I4 and I5 held (the
+\texttt{cgroup.kill} survivor rate 0/20 carries a Wilson 95\% upper bound of 16.1\%, so mechanism
+semantics, not the sample size, carry the assurance). One limit is intrinsic: the kill terminates the
+tree but cannot reverse a write, a packet, or an \texttt{io\_uring} completion that finished before
+quiescence---the 338 post-trigger writes are exactly such side effects---so a kill switch bounds damage
+after detection, it does not prevent it.
 
 \section{Discussion}\label{sec:discussion}
 
@@ -902,7 +934,7 @@ policy---so a supervisor that delegates must apply the filesystem policy itself 
 
 \section{Limitations}\label{sec:limits}
 
-The study is scoped and we state the scope rather than let a reviewer find it. The core subjects are three
+The study is scoped, and we state the scope. The core subjects are three
 local code models between 1.5 and 7 billion parameters; the model axis is extended to two frontier models
 (Section~\ref{sec:frontier}) for the injection experiment only, at N=8 per model per channel, so the
 frontier result is a direction rather than a benchmark, and the enumeration, self-description-divergence,
@@ -1021,7 +1053,7 @@ Part~IV, and the \texttt{enum\_tree.py},
 The one privileged step, the cgroup kill switch of Section~\ref{sec:killswitch}, is \texttt{killswitch.sh}
 and must be run as root.
 
-\begin{thebibliography}{21}
+\begin{thebibliography}{25}
 \bibitem{garfinkel03} T.~Garfinkel. Traps and pitfalls: practical problems in system call interposition based security tools. In \emph{Proc.\ Network and Distributed System Security Symposium (NDSS)}, 2003. Race conditions are Section~4.3.
 \bibitem{watson07} R.~N.~M.~Watson. Exploiting concurrency vulnerabilities in system call wrappers. In \emph{Proc.\ 1st USENIX Workshop on Offensive Technologies (WOOT)}, 2007.
 \bibitem{seccompheader} Linux kernel. \texttt{include/uapi/linux/seccomp.h}: commentary on \texttt{SECCOMP\_USER\_NOTIF\_FLAG\_CONTINUE}. ``It should be absolutely clear that this means that the seccomp notifier \_cannot\_ be used to implement a security policy!''
@@ -1043,6 +1075,10 @@ and must be run as root.
 \bibitem{attack} MITRE. ATT\&CK: adversarial tactics, techniques, and common knowledge. \texttt{https://attack.mitre.org}. Techniques cited: T1005, T1021.004, T1048/T1048.003, T1059/T1059.004, T1070/T1070.004, T1071.001, T1098.004, T1105, T1485, T1548/T1548.003.
 \bibitem{atlas} MITRE. ATLAS: adversarial threat landscape for artificial-intelligence systems. \texttt{https://atlas.mitre.org}. Technique cited: AML.T0051 (LLM prompt injection).
 \bibitem{owaspllm} OWASP GenAI Security Project. OWASP top 10 for LLM applications 2025. \texttt{https://genai.owasp.org/llm-top-10/}. Risks cited: LLM01 (prompt injection), LLM06 (excessive agency).
+\bibitem{cgroup2} Linux kernel. Control Group v2. \texttt{https://docs.kernel.org/admin-guide/cgroup-v2.html}. \texttt{cgroup.kill}, \texttt{cgroup.freeze}, and \texttt{cgroup.events} semantics; \texttt{cgroup.kill} terminates a subtree while handling concurrent forks and migrations.
+\bibitem{procvmwritev} Linux man-pages project. \texttt{process\_vm\_writev}(2). \texttt{https://man7.org/linux/man-pages/man2/process\_vm\_writev.2.html}.
+\bibitem{prctl} Linux man-pages project. \texttt{prctl}(2): \texttt{PR\_SET\_PTRACER} (Yama ptrace-scope registration). \texttt{https://man7.org/linux/man-pages/man2/prctl.2.html}.
+\bibitem{userfaultfd} Linux man-pages project. \texttt{userfaultfd}(2). \texttt{https://man7.org/linux/man-pages/man2/userfaultfd.2.html}. Unprivileged use gated by \texttt{vm.unprivileged\_userfaultfd} and \texttt{/dev/userfaultfd}.
 \end{thebibliography}
 
 \end{document}
