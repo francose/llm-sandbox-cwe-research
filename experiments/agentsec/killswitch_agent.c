@@ -25,14 +25,31 @@
 
 static _Atomic long *counter;
 
-static void worker(void){
-    // ~120 ms of work, appending to the shared counter, then exit so the supervisor churns us.
-    // Short lifetime => fast PID turnover, which is what a PID-enumeration sweep races against.
-    for (int n = 0; n < 120; n++){
+// A short-lived grandchild: ~20 ms of work, then exit. This is the concurrent fork that a
+// PID-enumeration sweep races -- a grandchild spawned after the snapshot is not in the kill list.
+static void grandchild(void){
+    alarm(25);                                   // self-terminate if ever orphaned (safety net)
+    for (int k = 0; k < 20; k++){
         atomic_fetch_add_explicit(counter, 1, memory_order_relaxed);
         usleep(1000);
     }
     _exit(0);
+}
+
+// A persistent worker: loops forever, and every ~8 ms forks a short-lived grandchild. Many
+// independent workers forking continuously means killing the supervisor does not stop the churn --
+// each surviving worker keeps spawning fresh PIDs until it is individually killed.
+static void worker(void){
+    alarm(25);                                   // safety net: no worker outlives the experiment
+    for (int n = 0; ; n++){
+        atomic_fetch_add_explicit(counter, 1, memory_order_relaxed);
+        usleep(1000);
+        if (n % 8 == 0){
+            pid_t g = fork();
+            if (g == 0) grandchild();
+        }
+        while (waitpid(-1, NULL, WNOHANG) > 0){}  // reap exited grandchildren, no zombies
+    }
 }
 
 int main(int argc, char **argv){
@@ -46,16 +63,11 @@ int main(int argc, char **argv){
     counter = mmap(NULL, sizeof(long), PROT_READ|PROT_WRITE, MAP_SHARED, cf, 0);
     if (counter == MAP_FAILED){ perror("mmap"); return 3; }
 
+    alarm(30);                                   // supervisor self-terminates if orphaned
     for (int i = 0; i < K; i++){
         pid_t p = fork();
         if (p == 0) worker();
     }
-    // Supervisor: respawn any worker that exits, forever. This churn defeats a PID snapshot.
-    for (;;){
-        int st; pid_t d = wait(&st);
-        if (d < 0 && errno == ECHILD){ sleep(1); }   // no children yet; stay alive
-        pid_t p = fork();
-        if (p == 0) worker();
-    }
+    for (;;){ pause(); }                          // hold the tree open until killed
     return 0;
 }

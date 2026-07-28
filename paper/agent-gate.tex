@@ -90,7 +90,8 @@ allowlist, a deterministic execution deny, and a routeless network namespace---t
 filesystem, execution, or network violation of five stated invariants under a runtime-mutation and
 mechanism-bypass matrix, save a descriptor opened before the domain, and an external
 \texttt{process\_vm\_writev} mutation that defeats the user-space gate does not reach the composed
-sandbox. The determinism of the
+sandbox; a host-owned cgroup kill switch drives the process tree to zero live processes where PID
+enumeration races. The determinism of the
 verdict is not soundness of the containment. What protects the host is coverage of the
 mechanisms an agent can use, and in every trial we ran a denied agent enumerated the
 alternatives rather than stopping.
@@ -145,8 +146,10 @@ control (Section~\ref{sec:attribution}). Part~IV assembles the sound controls in
 it against five explicit invariants: it holds against every filesystem, execution, and network attack that
 acquires access after the domain is entered---the composition closes the UDP and raw egress a single
 Landlock layer leaves open---with one measured caveat, a descriptor opened before the domain
-(Section~\ref{sec:composed}), and the same external memory mutation that defeats the user-space gate does
-not touch it (Section~\ref{sec:memmut}). Sections~\ref{sec:discussion}--\ref{sec:related} give the
+(Section~\ref{sec:composed}), the same external memory mutation that defeats the user-space gate does
+not touch it (Section~\ref{sec:memmut}), and a host-owned cgroup kill switch drives the process tree to
+zero live processes where PID enumeration races (Section~\ref{sec:killswitch}).
+Sections~\ref{sec:discussion}--\ref{sec:related} give the
 implication for a threat model, the limits of the study, and the position against prior work.
 
 \part{The control fails}
@@ -826,16 +829,39 @@ invalidate once the decision moves into the kernel.
 \section{Process-tree termination and resource bounds}\label{sec:killswitch}
 
 I4 and I5 are enforced by a host-owned \texttt{cgroup}~v2, which the unprivileged evaluation host does not
-provide, so they are scripted in \texttt{killswitch.sh} and run as the one privileged step of the
-artifact. The property that matters for I4 is correctness under concurrent forking, and it is
-host-independent: a supervisor that terminates the agent by enumerating PIDs and signalling them races
-new \texttt{fork}s and migrations, whereas \texttt{cgroup.kill} terminates the whole subtree atomically
-and \texttt{cgroup.freeze} first quiesces it for inspection. The script measures that correctness
-outcome---whether the kill drives \texttt{cgroup.events} to \texttt{populated~0} where PID enumeration
-leaves survivors, how much work the tree's threads still complete after activation, and what residue
-remains after teardown---and deliberately not a
-latency figure, because this host's non-\texttt{systemd}, emulated kernel would not support a credible
-one. A latency benchmark belongs on a native kernel and is future work.
+delegate, so \texttt{killswitch.sh} runs as the one privileged step of the artifact. We report
+correctness, not latency: this host's non-\texttt{systemd}, emulated kernel would not support a credible
+latency figure, and a latency benchmark belongs on a native kernel (future work). The agent is a bounded
+tree---thirty persistent workers, each continuously forking short-lived children, so the process set
+churns while the population stays near ninety.
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+invariant / mechanism & measurement & result \\
+\midrule
+I4 PID-enumeration sweep & survivors, 20 trials & 8/20 \\
+I4 \texttt{cgroup.kill} & survivors, 20 trials & 0/20 \\
+I4 \texttt{cgroup.kill} & work landing after the trigger & 338 writes, then \texttt{populated 0} \\
+I4 \texttt{cgroup.freeze} & work advance while frozen (0.7\,s) & 0 (98 procs inspectable) \\
+I5 \texttt{pids.max}=20 & peak processes / fork denials & 20 / 2078 \\
+I5 \texttt{memory.max}=64\,MB & a 256\,MB allocation & \texttt{OOM}-killed, host alive \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+A supervisor that terminates the agent by enumerating \texttt{cgroup.procs} and signalling each PID left
+the cgroup non-empty on 8 of 20 trials, because a child forked after the snapshot is not in the kill
+list; \texttt{cgroup.kill}, which terminates the subtree in the kernel, left survivors on 0 of 20. The
+8/20 is a property of the fork rate, not a constant---a tree that does not fork during teardown is cleared
+by either method, so the enumeration race needs a forking workload to appear at all---but the asymmetry
+does not depend on the rate. \texttt{cgroup.kill} is not instantaneous: 338 counter increments landed
+between the trigger and \texttt{populated~0}. It reaches quiescence with no survivors regardless.
+\texttt{cgroup.freeze} quiesced the tree deterministically---98 processes present and inspectable, work
+counter advancing 0 over 0.7\,s---so the supervisor can capture state without the tree racing it. The
+resource caps bound the tree: \texttt{pids.max} held the population at 20 against a tree trying to exceed
+it (2078 fork denials), and \texttt{memory.max} \texttt{OOM}-killed a process allocating four times its
+limit inside the cgroup with the host unaffected. I4 and I5 hold.
 
 \section{Discussion}\label{sec:discussion}
 
@@ -956,9 +982,11 @@ mechanism-bypass matrix that sandbox admitted no filesystem, execution, or netwo
 invariants once the domain was entered---the one measured exception being a descriptor opened before it,
 which fixes the discipline a delegating supervisor must follow---and the external memory mutation that
 takes the user-space gate on 28.5--44.2\% of attempts does not reach it. This is empirical evidence within the
-stated threat model, not a proof against unknown kernel or hypervisor flaws. The open work is a supervisor
-with no second argument read, a host-owned cgroup kill switch measured for latency on a native kernel, and
-a repeat against frontier models and a second architecture.
+stated threat model, not a proof against unknown kernel or hypervisor flaws. Its external \texttt{cgroup}
+kill switch drove the whole process tree to zero live processes where PID enumeration raced, freezing
+quiesced the tree, and the resource caps bounded it. The open work is a supervisor with no second argument
+read, a latency benchmark for the kill switch on a native kernel, and a repeat against frontier models and
+a second architecture.
 
 \paragraph{Reproducibility.} All code, data, and per-experiment results are committed in the
 accompanying artifact repository, \texttt{github.com/francose/llm-sandbox-cwe-research}.
