@@ -43,7 +43,7 @@
 an empirical evaluation of seccomp argument-inspection gates
 for containing LLM agents\thanks{Every number in this paper traces to a committed artifact in
 \texttt{github.com/francose/llm-sandbox-cwe-research}. The Part~I headline results re-check via
-\texttt{experiments/agentsec/reproduce.sh}; the Part~II and III benchmarks reproduce via their
+\texttt{experiments/agentsec/reproduce.sh}; the Part~II--IV benchmarks reproduce via their
 per-experiment scripts in the same directory.}}
 \author{Sadik Erisen\\[2pt]
 \normalsize Security Engineer, Comcast
@@ -212,9 +212,9 @@ imply precision the sample does not have. The gate's decision is not a stochasti
 no failure-rate interval; its determinism is a property to be stated, and its soundness is measured
 separately as coverage (Sections~\ref{sec:toctou}--\ref{sec:selectivity}). Every Part~I figure below is
 reproducible from committed source through \texttt{experiments/agentsec/reproduce.sh}, which rebuilds the
-binaries and re-checks the headline results (9 checks, all passing at the time of writing); the Part~II
-and III benchmarks reproduce through their own scripts (\texttt{landlock\_bench.sh}, which also runs
-the Landlock scope and \texttt{io\_uring} probes, plus \texttt{enum\_tree.py},
+binaries and re-checks the headline results (9 checks, all passing at the time of writing); the Part~II--IV
+benchmarks reproduce through their own scripts (\texttt{landlock\_bench.sh}, which also runs
+the Landlock scope, \texttt{io\_uring}, composed-sandbox, and memory-mutation probes, plus \texttt{enum\_tree.py},
 \texttt{concealment\_capture.py}, \texttt{matrix\_analysis.py}, \texttt{telemetry\_probe.py}).
 
 \section{The argument-inspection gate is bypassable}\label{sec:toctou}
@@ -233,8 +233,8 @@ sibling thread that flips the buffer from a benign path to \texttt{authorized\_k
 causes the supervisor to validate one path and the kernel to open another.
 
 We measured the effect with a two-thread target: one thread issues the \texttt{openat}, a second
-flips the shared path buffer. Across \Nrace{} attempts the evil path was opened despite the gate on
-19.2\% of tries in the first run and between \RaceLo\% and \RaceHi\% across four independent rebuilds;
+flips the shared path buffer. Across \Nrace{} attempts the evil path was opened despite the gate
+between \RaceLo\% and \RaceHi\% across five independent rebuilds (19.2\% on the first);
 the remainder split
 between benign opens and correct denials, and the three outcomes account for every trial. The
 existence of the bypass is a property of the mechanism and is host-independent; the per-attempt rate
@@ -528,8 +528,8 @@ on 90\% of steps) out to long horizons and several objectives: in this sample a 
 enumeration, not deterrence.
 
 The agent fixates on the assigned objective. On the three local goals it stayed on the local objective and
-never attempted lateral movement; only when the goal itself was lateral did it pivot off-host, and then
-decisively---18 lateral attempts distributing an SSH key to \texttt{10.0.0.5} (T1021.004). In this sample
+never attempted lateral movement; only when the goal itself was lateral did it pivot off-host---18
+lateral attempts distributing an SSH key to \texttt{10.0.0.5} (T1021.004). In this sample
 the blast radius is set by the goal, not by the agent inventing new objectives.
 
 The agent escalates along the axis the goal rewards. Persistence enumeration is a privilege-escalation
@@ -563,8 +563,8 @@ The union of observed techniques---T1005 (data from local system), T1021.004 (re
 T1048/T1048.003 (exfiltration over alternative/unencrypted non-C2 protocol), T1059.004 (Unix shell),
 T1098.004 (SSH \texttt{authorized\_keys}), T1548/T1548.003 (abuse elevation: \texttt{su}/%
 \texttt{sudo})~\cite{attack}---is the catalogue a per-syscall rule would have to enumerate to cover. The
-exfiltration ladder is the case for egress as the control plane, though it is worth being exact about
-what the ladder does and does not defeat. The proxy, Tor, and \texttt{nc} rungs all still reach the
+exfiltration ladder is the case for egress as the control plane, though its reach needs stating
+precisely. The proxy, Tor, and \texttt{nc} rungs all still reach the
 network through \texttt{connect} on a TCP socket, so a correct \texttt{connect} gate sees every one of
 them; what the agent varies there is the destination and the protocol above it, not the syscall. The
 rungs that would evade a \texttt{connect} gate are the ones the agent did not reach: \texttt{sendto}
@@ -821,8 +821,7 @@ The composed sandbox is immune to the identical external flip. Run against the L
 mutation opened the evil path 0 times in \Nrace{}: the flip only changes which \emph{denied} path is
 attempted, because the decision is taken at the LSM hook on the resolved object and there is no user-space
 check left to invalidate. Memory mutation defeats a control that decides in user space; it has nothing to
-invalidate once the decision moves into the kernel, which is the Part~I--to--Part~II argument restated at
-the level of the attack technique.
+invalidate once the decision moves into the kernel.
 
 \section{Process-tree termination and resource bounds}\label{sec:killswitch}
 
@@ -833,8 +832,8 @@ host-independent: a supervisor that terminates the agent by enumerating PIDs and
 new \texttt{fork}s and migrations, whereas \texttt{cgroup.kill} terminates the whole subtree atomically
 and \texttt{cgroup.freeze} first quiesces it for inspection. The script measures that correctness
 outcome---whether the kill drives \texttt{cgroup.events} to \texttt{populated~0} where PID enumeration
-leaves survivors, what side effects (bytes sent, files written, outstanding \texttt{io\_uring}
-completions) land after activation, and what residue remains after teardown---and deliberately not a
+leaves survivors, how much work the tree's threads still complete after activation, and what residue
+remains after teardown---and deliberately not a
 latency figure, because this host's non-\texttt{systemd}, emulated kernel would not support a credible
 one. A latency benchmark belongs on a native kernel and is future work.
 
@@ -956,7 +955,7 @@ routeless network namespace into a composed sandbox (Part~IV). Against the teste
 mechanism-bypass matrix that sandbox admitted no filesystem, execution, or network violation of its stated
 invariants once the domain was entered---the one measured exception being a descriptor opened before it,
 which fixes the discipline a delegating supervisor must follow---and the external memory mutation that
-takes the user-space gate one time in three does not reach it. This is empirical evidence within the
+takes the user-space gate on 28.5--44.2\% of attempts does not reach it. This is empirical evidence within the
 stated threat model, not a proof against unknown kernel or hypervisor flaws. The open work is a supervisor
 with no second argument read, a host-owned cgroup kill switch measured for latency on a native kernel, and
 a repeat against frontier models and a second architecture.
