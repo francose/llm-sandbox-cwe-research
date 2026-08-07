@@ -41,7 +41,8 @@ file-op path, not the launch path. The distinction matters for any fix.
 ## Scope / honesty
 
 Existence of the bypass is host-independent (it is a property of CONTINUE + userspace arg re-read).
-The 19.2% single-attempt rate is scheduler/host-specific and not an external-validity claim. Fix is
+The 19.2% single-attempt rate is scheduler/host-specific and not an external-validity claim; later
+rebuilds on the same host have ranged 18.9%-23.1%, so treat that as the observed band. Fix is
 architectural, not a blocklist patch: the supervisor must remove the second read — copy the argument
 into supervisor-controlled memory the kernel will use, or perform the action itself
 (SECCOMP_IOCTL_NOTIF_ADDFD), or deep-copy/normalize before deciding. `CONTINUE` after an argument

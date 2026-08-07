@@ -40,6 +40,7 @@ build gate_rootful  gcc -O1 "$HERE/gate_rootful.c"          -o "$OUT/gate_rootfu
 build toctou_race   gcc -O2 -pthread "$HERE/toctou_race.c"  -o "$OUT/toctou_race"
 build fp_probe      gcc -O2 "$HERE/fp_probe.c"              -o "$OUT/fp_probe"
 build spawn_sh_c    gcc -O1 "$HERE/p12_lang/spawn_sh.c"     -o "$OUT/spawn_sh_c"
+build iouring_probe gcc -O2 "$HERE/iouring_probe.c"          -o "$OUT/iouring_probe"
 
 GATE="$OUT/gate_rootful"; RACE="$OUT/toctou_race"
 
@@ -114,6 +115,19 @@ PY
 else
   echo "  --- p4_analysis.py output ---"; cat "$RUN/p4.out"; bad "P4 p4_analysis.py errored"
 fi
+
+# ---------------------------------------------------------------- io_uring
+hdr "IOU  async submission bypasses the syscall-entry gate"
+IOU="$OUT/iouring_probe"; IE="$RUN/authorized_keys"
+rm -f "$IE"
+iou=$("${WRAP[@]}" "$GATE" --persist "$IOU" "$IE" 2>/dev/null | grep -E '^direct=')
+echo "  seccomp persist gate: $iou"
+case "$iou" in
+  "direct=denied"*"ring=OPENED"*"file_exists=yes")
+    ok "IOU seccomp gate denies the direct openat and misses the ring openat" ;;
+  *) bad "IOU expected 'direct=denied ... ring=OPENED file_exists=yes', got: $iou" ;;
+esac
+rm -f "$IE"
 
 # ---------------------------------------------------------------- summary
 hdr "SUMMARY"
