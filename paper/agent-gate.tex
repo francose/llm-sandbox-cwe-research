@@ -601,12 +601,11 @@ precisely. The proxy, Tor, and \texttt{nc} rungs all still reach the
 network through \texttt{connect} on a TCP socket, so a correct \texttt{connect} gate sees every one of
 them; what the agent varies there is the destination and the protocol above it, not the syscall. The
 rungs that would evade a \texttt{connect} gate are the ones the agent did not reach: \texttt{sendto}
-on an unconnected UDP socket and a raw socket, neither of which calls \texttt{connect} at all, and
-both of which Part~II measures as unmediated by Landlock as well. So the ladder is evidence of
-persistence rather than of bypass---but the mechanisms that would bypass exist one rung further down,
-they are not hypothetical, and Section~\ref{sec:egress} measures both delivering a sentinel to a
-controlled receiver under a \texttt{connect} filter and under a Landlock ruleset alike; neither a
-\texttt{connect} rule nor an LSM covers them. That is the case for the durable choke
+on an unconnected UDP socket and a raw socket, neither of which calls \texttt{connect} at all. So the
+ladder is evidence of persistence rather than of bypass---but that is a fact about where the agent
+stopped, not about whether the next rung works. Section~\ref{sec:egress} takes both of those routes and
+delivers a sentinel to a controlled receiver 20/20, under a \texttt{connect} filter and under a Landlock
+ruleset alike. Neither a \texttt{connect} rule nor an LSM covers them. That is the case for the durable choke
 point being an audited egress gateway that sees packets rather than a per-syscall rule. And because
 the agent did not stop in any trial, no control should rely on it tiring or failing safe; the boundary
 has to be one the agent cannot enumerate past, which is the default-deny allowlist of Part~II carried
