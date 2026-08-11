@@ -76,9 +76,10 @@ the forbidden open on their first iteration, so the timing fields measure how so
 how fast the observer is; and this host's emulated non-`systemd` kernel would not support a credible
 latency benchmark anyway (see `EXP_KILLSWITCH_RESULTS.md`).
 
-Filesystem only. There is no network arm -- an egress canary reaching a controlled receiver would need a
-separate fixture, and the network invariant is enforced in this repo by an empty namespace rather than by
-a notify supervisor, so it is a different chain.
+Filesystem only. There is no network arm here: the network invariant is enforced in this repo by an empty
+namespace rather than by a notify supervisor, so it is a different chain. The egress canary reaching a
+controlled receiver lives in its own fixture, `EXP_EGRESS_RESULTS.md`, which measures what the network
+controls mediate but does not run the detect-deny-terminate loop over them.
 
 This is also a within-boundary experiment. The observer is outside the agent's PID namespace but on the
 same kernel. It says nothing about an escape that compromises the kernel itself, where the observer is

@@ -508,6 +508,8 @@ Third, the network ceiling is TCP. Under a ruleset that denies TCP \texttt{conne
 hook, and the UDP access rights are attributed to ABI~v10, which no released kernel carries; this host
 negotiates the highest ABI available to it and gets v7. A network-containment claim therefore cannot
 rest on Landlock alone, and the egress argument of Section~\ref{sec:enum} needs a gateway, not an LSM.
+Section~\ref{sec:egress} carries this from a return value to an arrival: under the same ruleset, the UDP
+and raw sentinels are delivered to a receiver in a namespace the agent does not own, 20/20.
 
 A complete design pairs a Landlock filesystem allowlist with a distinct execution policy
 and an audited egress gateway. The race and coverage outcomes follow from the documented semantics of
@@ -602,7 +604,9 @@ rungs that would evade a \texttt{connect} gate are the ones the agent did not re
 on an unconnected UDP socket and a raw socket, neither of which calls \texttt{connect} at all, and
 both of which Part~II measures as unmediated by Landlock as well. So the ladder is evidence of
 persistence rather than of bypass---but the mechanisms that would bypass exist one rung further down,
-and neither a \texttt{connect} rule nor an LSM covers them. That is the case for the durable choke
+they are not hypothetical, and Section~\ref{sec:egress} measures both delivering a sentinel to a
+controlled receiver under a \texttt{connect} filter and under a Landlock ruleset alike; neither a
+\texttt{connect} rule nor an LSM covers them. That is the case for the durable choke
 point being an audited egress gateway that sees packets rather than a per-syscall rule. And because
 the agent did not stop in any trial, no control should rely on it tiring or failing safe; the boundary
 has to be one the agent cannot enumerate past, which is the default-deny allowlist of Part~II carried
@@ -845,6 +849,76 @@ Part~I recommends is exactly such a hand-off) leaks write authority unless the l
 constrains it first. Every attack in the matrix that acquired its access \emph{after} the domain was
 entered was denied; we claim I1 for that tested class, and by construction for authority acquired after
 entry, not as a general property of the composition.
+
+\section{Egress, with an arrival oracle}\label{sec:egress}
+
+Every invariant above is decided by something the target cannot argue with: whether the path exists,
+what errno the kernel returned, how many PIDs still carry the namespace inode. I3 was the exception. Its
+evidence was that \texttt{sendto} returned a positive number, which says the sending kernel accepted a
+buffer and says nothing about where it went. This section replaces that with delivery.
+
+The fixture is one user namespace containing two network namespaces joined by a veth pair, all
+unprivileged. A receiver in the far namespace logs the verbatim sentinel of anything reaching a socket;
+an \texttt{AF\_PACKET} tap on the link is a second, independent witness, since a hand-built raw packet
+can cross the wire and still miss the socket. Each attempt carries a token unique in (arm, attempt,
+trial), so attribution is set membership rather than judgement. \texttt{tcpdump} cannot serve here---it
+drops privileges unconditionally and \texttt{setgroups(2)} is denied inside an unprivileged user
+namespace---which is why the tap is twenty lines of socket code instead.
+
+Five routes, four arms, 20 trials each. \texttt{preconn\_tcp} connects \emph{before} the control is
+applied and sends after it.
+
+\begin{center}
+\begin{tabular}{llccc}
+\toprule
+arm & route & syscall ok & arrived at sink & seen on wire \\
+\midrule
+baseline & all five            & 20/20 & \textbf{20/20} & 20/20 \\
+seccomp \texttt{connect} & tcp  & 0/20 (\texttt{EPERM})  & 0/20 & 0/20 \\
+seccomp \texttt{connect} & udp, raw & 20/20 & \textbf{20/20} & 20/20 \\
+seccomp \texttt{connect} & conn\_udp & 0/20 (\texttt{EPERM}) & 0/20 & 0/20 \\
+seccomp \texttt{connect} & preconn\_tcp & 20/20 & \textbf{20/20} & 20/20 \\
+Landlock \texttt{CONNECT\_TCP} & tcp & 0/20 (\texttt{EACCES}) & 0/20 & 0/20 \\
+Landlock \texttt{CONNECT\_TCP} & udp, conn\_udp, raw & 20/20 & \textbf{20/20} & 20/20 \\
+Landlock \texttt{CONNECT\_TCP} & preconn\_tcp & 20/20 & \textbf{20/20} & 20/20 \\
+empty netns & all five         & 0/20 (\texttt{ENETUNREACH}) & 0/20 & 0/20 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Three things follow. First, the two mediating controls share a blind spot and fail differently on the
+way to it. Both stop TCP \texttt{connect}; neither stops a datagram. But the syscall filter also denies
+\texttt{connect} on a UDP socket, because that is the same syscall number, while \texttt{CONNECT\_TCP}
+does not handle it at all. The name-scoped control is \emph{broader} on the verb it mediates and gains
+nothing by it, because the route that works never calls \texttt{connect}. This is the measured version
+of the argument in Section~\ref{sec:enum}: the rungs that evade a \texttt{connect} gate are not
+hypothetical, and they deliver.
+
+Second, neither mediating control is scoped to object lifetime. A socket connected before the policy
+existed delivers 20/20 under both, because \texttt{CONNECT\_TCP} mediates \texttt{connect(2)} and a
+filter on \texttt{connect} never sees \texttt{send}. This is the network form of the pre-open descriptor
+result of Section~\ref{sec:landlock}, and the sharper one: the descriptor here carries routed
+reachability rather than write authority to a single path. It is also the shape a real deployment
+has---a sandbox applied to a session already established.
+
+Third, the empty namespace is the trivial upper bound and did not compete on a level field. It is the
+only arm where the invariant holds by construction rather than by mediation: nothing arrives because
+there is no interface for anything to leave through. Its cost is the row under the table---the
+pre-control connection never establishes either, 0/20---so it denies the exfiltration and every
+legitimate connection with one mechanism. We report it as the bound, not as the winner.
+
+Honestly, the arrival oracle did not move the numbers: the syscall return predicted delivery in all 400
+attempts, and the two witnesses never disagreed. What it moved is what the numbers are a claim about.
+The I3 rows now assert that bytes carrying a known sentinel were delivered to a socket in a namespace
+the agent does not own, which is the only version of the claim that is about egress. The distinction is
+load-bearing precisely where it is least visible: a \texttt{sendto} returning 20 on a raw socket is
+equally consistent with a malformed header dropped one hop later.
+
+Scope: the receiver is one veth hop away under the same kernel. That is the right boundary for the
+question asked---did the bytes leave the agent's namespace---and it is not evidence about a routed path,
+a NAT, a proxy, or an egress gateway, none of which this topology contains. All five routes are
+hand-written; the corpus of Section~\ref{sec:attribution} makes no network calls, so none of this is a
+claim about what a model chooses to do.
 
 \section{Runtime process-memory mutation}\label{sec:memmut}
 

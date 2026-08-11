@@ -127,6 +127,7 @@ If you only run one thing, run that.
 | `bash pidns_kill.sh` | Part IV: the rootless tree kill. Same tree, same single signal, with and without a PID namespace | none |
 | `gcc -O2 observe_evade.c -o out/observe_evade -lseccomp` | Which observation channel the target can detect and evade: `strace` versus a seccomp notify listener | none |
 | `gcc -O2 closed_loop.c -o out/closed_loop -lseccomp` | Part IV: detect, deny, terminate as one chain. Five arms — baseline, observe, enforce, latekill, closed | none |
+| `bash egress_oracle.sh 20` | Part IV: egress with a real arrival oracle. Two netns joined by a veth, a receiver logging sentinels, an `AF_PACKET` tap. Five routes against a `connect` filter, a Landlock TCP ruleset, and an empty namespace | none |
 | `bash reproduce_part3.sh` | Part III determinism gate: runs the enumeration twice at a fixed seed and asserts the two runs hash identically | none, but needs Ollama |
 
 ## Two things to know before you read the numbers

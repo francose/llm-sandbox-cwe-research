@@ -33,6 +33,11 @@ runs each attack in its own fork child, and reads the oracle from the kernel err
 
 `ORACLE evil_path_exists=no preopen_sentinel_leaked=YES`, identical across 5 runs.
 
+The three I3 rows are the weakest oracle in this table and are decided by an errno: with no interface in
+the namespace there is nothing to route to, so nothing could have arrived even if the control had let it.
+`EXP_EGRESS_RESULTS.md` rebuilds the same three routes against a receiver that is actually reachable, and
+reports arrival rather than acceptance.
+
 Two readings. The composition is strictly stronger than any single layer: the UDP and raw sockets that
 pass a Landlock TCP ruleset untouched (EXP-LANDLOCK benchmark 3) are closed here, because I3 is enforced
 by the namespace, not by Landlock. And exactly one attack succeeds -- a write through a descriptor opened
