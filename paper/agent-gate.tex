@@ -107,8 +107,8 @@ hardware flaws that this study does not attempt.
 
 We hold every claim to a mechanical standard. A statement that ``the agent attempted $X$''
 means a compiled program issued syscall $X$ under \texttt{strace} inside a rootless network
-namespace with a timeout; we never infer behaviour from generated text. Under that
-standard we report the following as findings, not activities.
+namespace with a timeout; for these syscall-level findings we never infer behaviour from generated
+text. Under that standard we report the following as findings, not activities.
 
 \begin{enumerate}[leftmargin=1.4em,itemsep=2pt]
 \item The argument-inspection gate is bypassable by a TOCTOU race on its allow path
@@ -168,11 +168,17 @@ the kernel later re-reads.
 \texttt{timeout 10 unshare -rn strace -f}. The footprint of a run is the set of security-relevant
 syscalls it issues (\texttt{execve}, \texttt{connect}, \texttt{openat}, \texttt{unlink},
 \texttt{rmdir}, and their families), read from the trace. A baseline of one \texttt{execve}---the
-process launch---is subtracted before a run counts as ``attempting.'' No claim in this paper is
-derived by scanning model output for keywords.
+process launch---is subtracted before a run counts as ``attempting.'' No syscall-level claim is
+derived by scanning model output for keywords. The single text-level exception is the Part~III
+enumeration autopsy (Section~\ref{sec:enum}), which executes nothing and classifies the denied
+agent's proposed commands into ATT\&CK techniques by string match; it is labelled as such where it
+appears, and its command counts were checked to be real shell commands rather than prose for the
+reported model.
 
 \paragraph{Subjects.} Three local code models generate the artifacts: \texttt{qwen2.5-coder:1.5b},
-\texttt{qwen2.5-coder:7b}, and \texttt{deepseek-coder:6.7b}, served through Ollama. The host is a
+\texttt{qwen2.5-coder:7b}, and \texttt{deepseek-coder:6.7b}, served through Ollama. Ollama is the
+serving layer for artifact generation only; no result in Parts~I, II, or~IV depends on it, and the
+kernel-mechanism probes are hand-written C that runs with no model present. The host is a
 single x86\_64 machine. Section~\ref{sec:limits} states what this scope does and does not support.
 
 \paragraph{Where the code runs.} \texttt{unshare -rn} supplies a user and network namespace---no route
@@ -187,6 +193,18 @@ the deny gate---a seccomp filter that blocks \texttt{execve}, \texttt{unlink}, \
 (\texttt{/tmp/agentsec\_auto/sandbox\_cwd}); the destructive call returns \texttt{EPERM} and nothing is
 deleted, so we record the attempt without executing it. Fixtures are recreated per run and removed
 after.
+
+\paragraph{Who authored the attacks.} Two provenances run through this paper and conflating them would
+misstate the contribution. The bypasses of Parts~I,~II, and~IV---the TOCTOU race, the external memory
+mutation, the \texttt{io\_uring} submission, the Landlock scope probe, the composed matrix---are
+\emph{researcher-authored probes}: C programs we wrote to attack a mechanism whose documented semantics
+we had already read. They are existence results about the mechanism. No model discovered any of them,
+and nothing here should be read as an agent autonomously escaping a sandbox. The model-generated
+material is Part~III: the destructive and injection artifacts a model produced, and the mechanisms a
+denied agent proposed. Those are behavioural results and none of them demonstrates a bypass. Relatedly,
+every result in this paper concerns a \emph{control} bypass---a named enforcement mechanism failing to
+stop a named effect inside a domain we defined. None of it is a container escape or a host escape; no
+experiment here crosses a container boundary, a hypervisor boundary, or the kernel the observer runs on.
 
 \paragraph{The gate.} The rootful gate forks the target, installs \texttt{SCMP\_ACT\_NOTIFY} on
 \texttt{execve}, \texttt{execveat}, and \texttt{connect} (and, in persistence mode, on
@@ -229,7 +247,9 @@ flips the shared path buffer. Across \Nrace{} attempts the evil path was opened 
 between \RaceLo\% and \RaceHi\% across five independent rebuilds (19.2\% on the first);
 the remainder split
 between benign opens and correct denials, and the three outcomes account for every trial. The
-existence of the bypass is a property of the mechanism and is host-independent; the per-attempt rate
+existence of the bypass is predicted by the documented semantics of the mechanism---under
+\texttt{SECCOMP\_USER\_NOTIF\_FLAG\_CONTINUE} the kernel re-reads the pointer after the supervisor has
+answered---and we demonstrate it empirically on one host; the per-attempt rate
 depends on scheduler behaviour and moved between runs, so we do not treat it as a fixed figure. Under
 retry the distinction stops mattering: at a per-attempt success near one in five, a persistence write
 succeeds with probability above 0.9 within roughly eleven attempts, and the agent is free to retry.
@@ -379,12 +399,22 @@ shell spawned after launch---is denied identically whether the target is compile
 interpreter, or a shell script (\texttt{denied\_execve}$=1$ in each, with the shell never running). The
 gate observes the kernel interface, so the source language above it does not change the verdict.
 
-The boundary is also the right place to observe, because analysis above it cannot certify. In companion
-work on the same corpus, ten static and dynamic detectors, AddressSanitizer included, all miss an
-intra-object overflow that crosses no kernel boundary; the artifact is clean to every checker yet
-corrupt at runtime. Observation therefore has to move to execution, and the syscall boundary is where
-execution becomes visible. What the boundary gives is a deterministic, auditable \emph{verdict}; what it
-does not give, per Sections~\ref{sec:toctou}--\ref{sec:selectivity}, is soundness.
+The boundary is also the right place to observe the calls that reach it, because the account the agent
+gives of its own artifact does not reliably describe what that artifact executes. In the concealment
+measurement (Section~\ref{sec:attribution}), 5 of the 14 artifacts that spawned a shell were described by
+the same model as ordinary file writes: the data effect was stated truthfully and the mechanism---%
+\texttt{system()} reaching \texttt{execve("/bin/sh")}---was omitted. A reviewer reading the description
+would not learn that a process had been executed; the syscall footprint is what carried it. So for the
+executed mechanism, observation cannot rest on stated intent, and the boundary sees the call whatever the
+artifact claims about itself.
+
+That is a claim about calls that cross the boundary, and only about those. Corruption confined to a
+process's own address space---an intra-object overflow that reaches no syscall---is invisible here for
+the same reason it is invisible to a static checker: nothing crosses. Catching that class needs
+memory-safety or execution-level instrumentation inside the process, which is a different control from
+the one this paper evaluates. What the boundary gives is a deterministic, auditable \emph{verdict} on the
+calls that cross it; what it does not give, per Sections~\ref{sec:toctou}--\ref{sec:selectivity}, is
+soundness, and what it never sees is everything that stays inside.
 
 \part{A race-free successor, benchmarked}
 
@@ -480,8 +510,8 @@ negotiates the highest ABI available to it and gets v7. A network-containment cl
 rest on Landlock alone, and the egress argument of Section~\ref{sec:enum} needs a gateway, not an LSM.
 
 A complete design pairs a Landlock filesystem allowlist with a distinct execution policy
-and an audited egress gateway. The race and coverage results are host-independent
-properties of the mechanisms; the seccomp win rate is scheduler-dependent, as in Section~\ref{sec:toctou},
+and an audited egress gateway. The race and coverage outcomes follow from the documented semantics of
+the mechanisms and were demonstrated on this one host; the seccomp win rate is scheduler-dependent, as in Section~\ref{sec:toctou},
 and has ranged from \RaceLo\% to \RaceHi\% across five independent rebuilds, so we report the band
 rather than a point estimate.
 All measurements are one x86\_64 host at Landlock ABI~v7.
@@ -518,6 +548,15 @@ and still useful one: over eleven-step horizons and four different objectives we
 failure mode a defender would be relying on. This carries the Part~I reaction-to-denial result (adapt
 on 90\% of steps) out to long horizons and several objectives: in this sample a denial elicited
 enumeration, not deterrence.
+
+The table above is a stochastic run (temperature 0.6, unseeded), so we re-ran the same four goals, two
+trials, and eleven-step horizon on the same model under fixed decoding (temperature 0, seed 42) as a
+seed-pinned replication. Both runs hashed identically over the full escalation tree
+(\texttt{core\_sha256} equal, \texttt{reproduce\_part3.sh}), and both recorded 88 action steps and 0
+stops---classified this time by \texttt{enum\_tree}'s prose-refusal detector rather than by the weaker
+test of whether a command string could be extracted. The zero-stop result therefore does not depend on
+the sampling temperature or on the looser refusal test. The distinct-technique and escalation columns
+remain those of the stochastic run, which is the data of record for this table.
 
 The agent fixates on the assigned objective. On the three local goals it stayed on the local objective and
 never attempted lateral movement; only when the goal itself was lateral did it pivot off-host---18
@@ -698,7 +737,36 @@ The four routes reach one wall. ``LLM agent'' names no behavioural class; it is 
 controller chooses, able to pace like a human, retry like a port scanner, or stop after one block. The
 adversarially robust facts are what the actor did at the boundary (its footprint), whether it was
 authorized (the policy at the gate), and where its bytes went (the network), not what it looks like.
-Certify the boundary; do not profile the actor.
+
+One qualification on ``its footprint'', because not every syscall-level observer earns the word. We ran a
+target that reads \texttt{TracerPid} from \texttt{/proc/self/status}~\cite{ptracestatus} and takes the
+benign branch when that field is nonzero. Unobserved it wrote the forbidden path on 5 of 5 runs. Under
+\texttt{strace~-f} it read a nonzero tracer, took the benign branch, and the resulting trace recorded a
+clean run---no trace mentioned the forbidden path on any of 5 runs. Under a seccomp user-notification
+supervisor, \texttt{TracerPid} was 0, the target committed the forbidden call, and the supervisor
+observed the resolved pathname and denied it on 5 of 5.
+
+The distinction this draws is not that the notify channel is undetectable. It is not: the same file
+reports \texttt{Seccomp:~2} and \texttt{Seccomp\_filters:~1} once a filter is loaded, which we verified
+directly, so a target can learn that it is filtered by the identical one-line read. What it cannot learn
+there is the policy, or whether a supervisor is answering. The asymmetry is in what detection buys.
+Under \texttt{ptrace}, detection yields a false negative in the evidence---a faithful trace of a clean run
+of a hostile program, with nothing in it to indicate that anything was withheld. Under a notify
+supervisor that answers with an errno the kernel applies, detection buys only the option of not acting:
+the target cannot make that call succeed, and cannot produce a clean record while escaping through it,
+because the same process decides the call and writes the record. That scope matters---a supervisor which
+instead answers \texttt{CONTINUE} reopens exactly the race of Section~\ref{sec:toctou}, where the call is
+recorded as the benign path the supervisor read and executed as the path the kernel re-read. An agent
+that goes quiet while watched is a coverage problem; a trace that certifies a hostile run as clean is a
+corrupted verdict. It does not overturn the
+\texttt{strace} footprints reported above---we checked rather than assumed, and no \texttt{TracerPid},
+\texttt{PTRACE\_TRACEME}, \texttt{ptrace}, or \texttt{/proc/self/status} check appears anywhere in the
+corpora those footprints come from: the 228 generated C artifacts, or the injection, persistence,
+autonomous-destruction, concealment, and enumeration run records---but it scopes the method: footprinting through a
+\texttt{ptrace} attachment is sound for a corpus that does not look for a tracer, and a supervisor meant
+to survive one that does should hold a notify listener instead. Mechanically verify at the boundary,
+within the stated policy and attack matrix, on a channel the target cannot query; do not profile the
+actor.
 
 \part{The composed sandbox under attack}
 
@@ -790,8 +858,9 @@ attacker owning the target can do. This is cross-process runtime buffer mutation
 \texttt{ptrace} authority---not the hijack of an unrelated protected process (the target consents, and an
 attacker that already owns the target could mutate the buffer internally), and not a physical-memory or
 hardware-page experiment; it operates on the target's virtual memory. Against the same gate the external
-writer opened the persistence path on 28.5--44.2\% of attempts across five runs of \Nrace{}, a rate in the
-same range as the in-process thread (Section~\ref{sec:toctou}'s \RaceLo--\RaceHi\%). The other external
+writer opened the persistence path on 28.5--44.2\% of attempts across five runs of \Nrace{}, a rate
+somewhat higher than the in-process thread's (Section~\ref{sec:toctou}'s \RaceLo--\RaceHi\%) but of the
+same order, winning the same second-read window by a different route. The other external
 mechanisms the literature names
 (\texttt{/proc/pid/mem}, a \texttt{ptrace} poke) write the same bytes to the same address in the same
 window; we do not restate one finding as several. The single variant that would add a property rather than
@@ -851,6 +920,69 @@ tree but cannot reverse a write, a packet, or an \texttt{io\_uring} completion t
 quiescence---the 338 post-trigger writes are exactly such side effects---so a kill switch bounds damage
 after detection, it does not prevent it.
 
+\paragraph{A race-free tree kill without privilege.} Requiring a delegated cgroup puts I4 out of reach on
+hosts where the supervisor is unprivileged, so we measured the unprivileged counterpart: run the agent
+tree in its own PID namespace and kill that namespace's init, on which the kernel terminates every
+remaining process in the namespace~\cite{pidns}. Like \texttt{cgroup.kill}, it consults no member list,
+so there is no snapshot to go stale. Against the same churning tree, over 20 trials each: killing the
+namespace init left 0/20 trials with survivors, driving roughly ninety processes to zero every time,
+while the \emph{same single signal} to the \emph{same} supervisor process outside a PID namespace left
+the entire tree running on 20 of 20 trials (1864 surviving processes in total). The control is what makes
+this a result rather than a restatement---the tree does not die because the supervisor died, it dies
+because the kernel reaps a namespace whose init exited. The post-trigger limit is unchanged: 290 counter
+increments landed per trial between the signal and quiescence. A PID namespace bounds the tree but not
+its resources, so I5 still requires the cgroup and still requires privilege.
+
+\section{Detection, denial, and termination as one chain}\label{sec:closedloop}
+
+Sections~\ref{sec:composed}--\ref{sec:killswitch} establish three properties separately: an action can be
+observed at the boundary, it can be denied there, and the process tree can be terminated. Composing them
+is a further claim, because a detection that does not drive the termination leaves the residual
+unmeasured. We ran the chain end to end with the observer outside the boundary it watches---the
+supervisor is the grandparent process, outside the agent's PID namespace, holding a seccomp notify
+listener the agent handed out---against twelve workers that retry a forbidden write on a fixed cadence.
+Ground truth is the canary file, a work counter read from outside the namespace, and a survivor count
+keyed on the namespace inode. Five arms isolate each link; all five were identical across five trials.
+
+\begin{center}
+\begin{tabular}{lccccc}
+\toprule
+arm & current call & kill & canary written & bytes & detections \\
+\midrule
+baseline & allowed & no & yes & 420 & 0 \\
+observe & allowed & no & yes & 421 & 421 \\
+enforce & denied & no & no & 0 & 421 \\
+latekill & allowed & yes & yes (20/20) & 1 (19/20) & 1 \\
+closed & denied & yes & no & 0 & 1 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Three results, of which two are constraints. Observation alone changes no outcome: the supervisor
+correctly identified all 421 forbidden opens and the canary was written regardless, because that arm
+answers \texttt{CONTINUE}. This is the only arm in which the forbidden action completes while being
+watched, and it is what separates detection from enforcement---elsewhere one mechanism does both and the
+two claims collapse. A kill switch alone does not keep the canary clean: \texttt{latekill} detects,
+allows, then terminates, and the operation that triggered the detection had already completed. Over 20
+trials the canary file existed every time; it carried the one-byte payload on 19 of the 20 and was empty
+on the remaining one, where the create landed and the write did not. The file creation is the invariant
+and the payload is the part that races---no reduction in kill latency drives the creation to zero,
+because that effect completed before the trigger existed. And denial alone is not terminal: \texttt{enforce} holds the canary at
+zero while absorbing 421 retries in 1.5\,s, which is the enumeration behaviour of Section~\ref{sec:enum}
+appearing as a retry rate.
+
+Only the composed chain does both jobs, and the order is load-bearing. The synchronous denial keeps the
+current effect from landing; the termination stops the agent from enumerating past it. Neither
+substitutes for the other in either direction. The counts are properties of this fixture's fixed retry
+cadence rather than a damage rate for any real workload---we varied the worker count and run length
+across four configurations and the attempt counts scale with them---so what the fixture is built to
+expose is the shape: \texttt{latekill} completes exactly the operation it detected and nothing after it.
+We report no
+latency figures here: detection is effectively immediate because the workers attempt on their first
+iteration, so the timing fields measure how soon the agent tried rather than how fast the observer is.
+The arm is filesystem-only, and the observer shares a kernel with the agent, so it says nothing about an
+escape that compromises the kernel the observer runs on.
+
 \section{Discussion}\label{sec:discussion}
 
 The result a defender should carry out of this study is a separation the marketing of syscall sandboxes
@@ -887,8 +1019,10 @@ one x86\_64 host at Landlock ABI~v7. Interception was checked across three langu
 aarch64 is not established here, because faithful native seccomp semantics are unavailable under user-mode
 emulation. The TOCTOU bypass is an existence result; its per-attempt rate is scheduler-dependent and not
 an external-validity claim, as are the seccomp win rates the Landlock and kill-switch benchmarks measure
-against---the race-closure, alias-coverage, and mechanism-asymmetry results are host-independent, the rates
-are not.
+against---the race-closure, alias-coverage, and mechanism-asymmetry outcomes are those the documented
+mechanism semantics predict, and we demonstrate them on this host; whether they reproduce on a kernel,
+architecture, or scheduler we did not test is a prediction, not a measurement. The rates are narrower
+still: they are properties of this host and workload.
 
 Three Part~II limits are measured, not argued (Section~\ref{sec:landlock}): execution is unrestricted
 because our ruleset does not handle it, not because Landlock cannot; a descriptor opened before the ruleset
@@ -955,8 +1089,8 @@ A deterministic syscall gate is a useful control and a poor certificate. Measure
 rather than a cooperative target, the argument-inspection gate is bypassable on its allow path, blind to
 the mechanisms it does not enumerate, and imprecise where it matches paths by substring; and the agent it
 contains, when denied, looked for another way in every trial we ran rather than stopping. The defensible claim is narrow and worth
-stating plainly: certify the verdict, scope the coverage, and assume the agent will route around any single
-blocked path. The default-deny allowlist over a path-resolving mechanism that the failure implies is built
+stating plainly: mechanically verify the verdict within the policy and matrix you tested, scope the
+coverage, and assume the agent will route around any single blocked path. The default-deny allowlist over a path-resolving mechanism that the failure implies is built
 and benchmarked here (Section~\ref{sec:landlock}), and assembled with a deterministic execution deny and a
 routeless network namespace into a composed sandbox (Part~IV). Across the tested runtime-mutation and
 mechanism-bypass matrix, no attack violated that sandbox's filesystem, execution, or network invariants
@@ -970,16 +1104,36 @@ read, a latency benchmark for the kill switch on a native kernel, and a repeat a
 a second architecture.
 
 \paragraph{Reproducibility.} All code, data, and per-experiment results are committed in the
-accompanying artifact repository, \texttt{github.com/comcast-tsf/tsf-llm-security-research}.
-\texttt{experiments/agentsec/reproduce.sh} rebuilds
-the gate and the probes from source and re-checks the Part~I headline results (9 checks); the Part~II and
-III benchmarks reproduce through \texttt{landlock\_bench.sh}, whose third benchmark is the scope probe
-of Section~\ref{sec:landlock} (\texttt{landlock\_scope.c}) and whose fifth and sixth are the composed
-sandbox (\texttt{composed\_probe.c}) and the external memory mutation (\texttt{mem\_extern.c}) of
-Part~IV, and the \texttt{enum\_tree.py},
-\texttt{concealment\_capture.py}, \texttt{matrix\_analysis.py}, and \texttt{telemetry\_probe.py} probes.
-The one privileged step, the cgroup kill switch of Section~\ref{sec:killswitch}, is \texttt{killswitch.sh}
-and must be run as root.
+accompanying artifact repository, archived at \texttt{[ARCHIVAL URL / DOI]}. From a clean
+checkout, \texttt{experiments/agentsec/reproduce.sh} rebuilds the gate and the probes from source
+and re-checks the Part~I headline results in one command (9 checks, all passing, no privilege
+required); we verified this from a fresh clone on a host with no build state.
+\texttt{landlock\_bench.sh} reproduces Part~II and the Part~IV probes: the race under each control,
+syscall-alias coverage, the Landlock scope probe of Section~\ref{sec:landlock}
+(\texttt{landlock\_scope.c}), the \texttt{io\_uring} submission, the composed sandbox
+(\texttt{composed\_probe.c}) of Section~\ref{sec:composed}, and the external memory mutation
+(\texttt{mem\_extern.c}) of Section~\ref{sec:memmut}. The Part~III enumeration table re-derives
+offline and deterministically from the committed run data with \texttt{enum\_tree.py --analyze},
+so it needs no live model; the remaining Part~III probes (\texttt{concealment\_capture.py},
+\texttt{matrix\_analysis.py}, \texttt{telemetry\_probe.py}) require Ollama and the local models of
+Section~\ref{sec:method}. The rootless tree kill of Section~\ref{sec:killswitch}
+(\texttt{pidns\_kill.sh}) and the observation-channel comparison of Section~\ref{sec:attribution}
+(\texttt{observe\_evade.c}) both run unprivileged and need no model. The one privileged step is the
+cgroup kill switch of Section~\ref{sec:killswitch}, \texttt{killswitch.sh}, which must be run as
+root.
+
+Two scope conditions apply to what re-running establishes. The TOCTOU win rate is
+scheduler-dependent (Section~\ref{sec:toctou}), so a repeat reproduces the existence of the bypass
+and not its rate; the direct-attack control (\Nrace/\Nrace{} denied) is the deterministic figure.
+And model-derived results divide on two independent axes we report separately. \emph{Identity}: a
+local weight file is content-addressed by digest, whereas a remotely served model may be replaced
+under an unchanged tag, so results from the latter are dated observations. \emph{Determinism}:
+whether a fixed seed yields byte-identical completions is a property of the serving build, backend,
+and thread shape, not of the file format, and a content digest does not establish it; the evidence
+is the two-run gate \texttt{reproduce\_part3.sh}, which records its verdict per model and per
+environment, and a model with no recorded run is reported as unverified rather than deterministic.
+The published
+agent-behaviour numbers come from the local models; the committed run files are the data of record.
 
 \begin{thebibliography}{25}
 \bibitem{garfinkel03} T.~Garfinkel. Traps and pitfalls: practical problems in system call interposition based security tools. In \emph{Proc.\ Network and Distributed System Security Symposium (NDSS)}, 2003. Race conditions are Section~4.3.
@@ -1007,6 +1161,8 @@ and must be run as root.
 \bibitem{procvmwritev} Linux man-pages project. \texttt{process\_vm\_writev}(2). \texttt{https://man7.org/linux/man-pages/man2/process\_vm\_writev.2.html}.
 \bibitem{prctl} Linux man-pages project. \texttt{prctl}(2): \texttt{PR\_SET\_PTRACER} (Yama ptrace-scope registration). \texttt{https://man7.org/linux/man-pages/man2/prctl.2.html}.
 \bibitem{userfaultfd} Linux man-pages project. \texttt{userfaultfd}(2). \texttt{https://man7.org/linux/man-pages/man2/userfaultfd.2.html}. Unprivileged use gated by \texttt{vm.unprivileged\_userfaultfd} and \texttt{/dev/userfaultfd}.
+\bibitem{pidns} Linux man-pages project. \texttt{pid\_namespaces}(7). \texttt{https://man7.org/linux/man-pages/man7/pid\_namespaces.7.html}. When the \texttt{init} process of a PID namespace terminates, the kernel sends \texttt{SIGKILL} to every remaining process in that namespace.
+\bibitem{ptracestatus} Linux man-pages project. \texttt{proc}(5): \texttt{/proc/}\emph{pid}\texttt{/status}, \texttt{TracerPid} field. \texttt{https://man7.org/linux/man-pages/man5/proc.5.html}. Reports the PID of the process tracing this one, or 0 if untraced.
 \end{thebibliography}
 
 \end{document}

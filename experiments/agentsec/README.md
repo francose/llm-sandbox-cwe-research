@@ -70,6 +70,26 @@ python3 agentsec_mvp.py --run
 python3 agentsec_autonomous.py --run
 ```
 
-Requires `ollama` serving the three models, `libseccomp`, `strace`, and an unprivileged user
+Requires `ollama` serving the local models, `libseccomp`, `strace`, and an unprivileged user
 namespace (`unshare -rn`). Host used: Ubuntu 22.04.5, x86_64, WSL2 kernel 6.18, libseccomp
 2.5.3, strace 5.16.
+
+### Reproducible agent-behaviour tier (`reproduce_part3.sh`)
+
+The kernel-mechanism results have a one-command rebuild (`reproduce.sh`). The agent-behaviour work
+now has one too, for the model tier that can carry a reproducible claim:
+
+```
+bash reproduce_part3.sh                 # default pinned model, seed 42
+bash reproduce_part3.sh qwen2.5-coder:7b
+```
+
+`options {"temperature":0,"seed":N}` on a pinned local GGUF model yields byte-identical completions,
+so the whole EXP-ENUM escalation tree hashes the same across runs; the gate runs the tree twice and
+asserts equal `core_sha256`. `model_manifest.py` classifies every model: **pinned** (local, gguf,
+digest-anchored, seed-reproducible) vs **unpinned** (`:cloud`/remote — ignores the seed, and the
+provider can swap the served checkpoint under the same tag, so results are dated observations, not
+reproducible). `repro_enum.py` refuses unpinned models without `--allow-unpinned`. Every results
+file carries a provenance header (seed, per-model digest + pinned flag, ollama build/host, sampling
+params) so the two claim types never sit unlabelled in one column. Seed determinism is scoped to a
+fixed ollama build + backend + thread shape; re-run the gate on the target host to confirm there.

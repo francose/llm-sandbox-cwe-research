@@ -43,4 +43,4 @@ Landlock-style approach the novelty reviewer flagged.
 ## Scope
 Single host; the corpus is illustrative, so the 40% headline is corpus-mix-dependent and is NOT the
 claim. The claims are the two findings above: selectivity is real (not deny-all), and the FP/FN
-tradeoff is structural to substring matching. Both are host-independent properties of the code.
+tradeoff is structural to substring matching. Both follow from how substring matching works and were demonstrated on this one host.

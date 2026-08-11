@@ -83,3 +83,79 @@ gcc -O2 -o src/enforcer/supervisor src/enforcer/supervisor.c -lseccomp
 unshare -Ur ./src/enforcer/supervisor data/enforcer_events.jsonl   # kernel enforcer
 python3 src/agent/broker.py                           # app-layer broker (needs Ollama)
 ```
+# Artifact: "Determinism is not soundness"
+
+This repo holds two related bodies of work. The CWE-detector study described above, and the
+artifact for the paper *Determinism is not soundness: an empirical evaluation of seccomp
+argument-inspection gates for containing LLM agents*. This section covers the paper.
+
+Everything for the paper lives in `experiments/agentsec/`. The paper's source is
+`paper/agent-gate.tex`.
+
+## Quick start
+
+```
+cd experiments/agentsec
+bash reproduce.sh
+```
+
+That rebuilds every binary from committed source and re-checks the Part I headline results.
+It takes about two seconds on a warm machine, compile included, and needs no privilege. You
+should see `9 passed, 0 failed`.
+
+If you only run one thing, run that.
+
+## What you need
+
+- Linux, x86_64. The kernel mechanisms are the point, so this does not run on macOS or WSL1.
+- `gcc`, `python3`, `strace`, `unshare` with unprivileged user and network namespaces enabled.
+- `libseccomp-dev` — the build needs `seccomp.h`.
+- Landlock for Part II. We ran ABI v7; the scope probe negotiates the highest ABI the kernel
+  offers and reports what it got.
+- Root, but only for `killswitch.sh`. Nothing else asks for it.
+- Ollama with local models, but only to generate fresh agent behaviour. Every published number
+  re-derives from committed data without it.
+
+## What reproduces what
+
+| Command | Covers | Privilege |
+|---|---|---|
+| `bash reproduce.sh` | Part I: TOCTOU race (3 conditions), selectivity confusion matrix, language invariance across C/Python/shell, footprint refutation, io_uring bypass | none |
+| `bash landlock_bench.sh` | Part II and IV: the race under each control, syscall-alias coverage, where the Landlock allowlist stops, io_uring, the composed sandbox matrix, external `process_vm_writev` mutation | none |
+| `python3 enum_tree.py --analyze` | Part III: re-derives the enumeration table offline from committed JSON. No model, deterministic | none |
+| `sudo bash killswitch.sh` | Part IV: `cgroup.kill` versus PID enumeration, freeze, `pids.max`, `memory.max` | root |
+| `bash pidns_kill.sh` | Part IV: the rootless tree kill. Same tree, same single signal, with and without a PID namespace | none |
+| `gcc -O2 observe_evade.c -o out/observe_evade -lseccomp` | Which observation channel the target can detect and evade: `strace` versus a seccomp notify listener | none |
+| `gcc -O2 closed_loop.c -o out/closed_loop -lseccomp` | Part IV: detect, deny, terminate as one chain. Five arms — baseline, observe, enforce, latekill, closed | none |
+| `bash reproduce_part3.sh` | Part III determinism gate: runs the enumeration twice at a fixed seed and asserts the two runs hash identically | none, but needs Ollama |
+
+## Two things to know before you read the numbers
+
+The TOCTOU win rate moves between runs. It is scheduler-dependent and we say so in the paper —
+the reproducible claim is that the race wins at all, not that it wins at a particular rate. Any
+run where the gate is beaten reproduces the finding. The direct-attack control is the one that
+must come back exact: 4000 denied out of 4000, every time.
+
+Model provenance is two facts, not one, and `model_manifest.py` prints them in separate columns.
+*Identity* is whether the thing being served is content-addressed: a local GGUF file has a digest,
+so you can answer "which weights ran"; Ollama's `:cloud` tags are ~300-byte pointer manifests the
+provider can repoint under the same tag, so those results are dated observations. *Determinism* is
+whether the same seed actually produces the same bytes on your host and build — and that is not
+implied by having a digest. Ollama documents a digest and a seed option, but seed reproducibility
+in llama.cpp is scoped to a fixed build and float-reduction order, so a different backend or thread
+shape can move it. The evidence is the two-run gate in `reproduce_part3.sh`, which records its
+verdict to `determinism_evidence.json`. Until that gate has run on your machine, every model reads
+`determinism=unverified` no matter how good its digest is. That is deliberate.
+
+`reproduce_part3.sh` with no arguments runs the published configuration (qwen2.5-coder:7b, 11 steps,
+2 trials). Passing a smaller model or setting `STEPS`/`TRIALS` gives you a faster deterministic
+trajectory but not the paper's table, and the script labels the run REDUCED and declines to record a
+determinism verdict. If Ollama is not reachable it exits 77, not 0 — a gate that did not run is not
+a gate that passed. One caveat on the trials: at a single seed they are duplicate trajectories by
+construction, which is a repeatability check and cannot estimate behavioural variability.
+
+## Where the numbers live
+
+Each experiment writes a `EXP*_RESULTS.md` next to its script, and the agent-behaviour runs also
+write JSON. Those files are the data of record for the paper's tables. If a table and a fresh run
+disagree, the committed file is what the paper reported and the fresh run is new data.

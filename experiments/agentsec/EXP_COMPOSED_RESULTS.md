@@ -52,7 +52,7 @@ the flip mechanism.
 |---|---|---|
 | seccomp CONTINUE gate | external `process_vm_writev` | 1213 / 1767 / 1141 / 1675 / 1472 -> **28.5%-44.2%** |
 | seccomp CONTINUE gate | direct evil open (control) | 0 / 500 -- gate catches every direct attempt |
-| Landlock allowlist | external `process_vm_writev` | **0 / 4000** -- immune |
+| Landlock allowlist | external `process_vm_writev` | **0 / 4000** -- resisted this tested mutation |
 
 The external writer defeats the gate at least as often as the in-process sibling thread (EXP-11,
 18.9%-23.1%). The other named external mechanisms (`/proc/pid/mem`, `ptrace` poke) write the same bytes
@@ -61,13 +61,13 @@ variant that would add a property -- pausing the faulting read to make the race 
 root-gated on this host (`/dev/userfaultfd` is 0600 root, `vm.unprivileged_userfaultfd=0`), so it is left
 to the privileged step.
 
-Landlock is immune to the identical flip (win=0/4000): the mutation only changes which *denied* path is
+Landlock resisted the identical flip (win=0/4000): the mutation only changes which *denied* path is
 attempted, because the decision is taken at the LSM hook on the resolved object with no user-space check
 left to invalidate.
 
 ## Scope
 
 Single x86_64 host, Landlock ABI v7, `kernel.io_uring_disabled=0`, Yama `ptrace_scope=1`. I1-I3 and the
-memory-mutation coverage are host-independent properties of the mechanisms; the win rates are
+memory-mutation coverage follow from the documented mechanism semantics and were demonstrated on this one host; the win rates are
 scheduler-dependent as in EXP-11. I4-I5 require a delegated cgroup this host does not provide unprivileged
 and are measured under root in `killswitch.sh`.

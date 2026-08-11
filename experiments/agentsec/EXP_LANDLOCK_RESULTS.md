@@ -78,6 +78,6 @@ goes there. Landlock follows the work onto the ring, because it hooks the LSM an
 submitted work under the submitter's credentials. Full write-up and the list of what this does *not*
 cover: `EXP_IOURING_RESULTS.md`.
 
-Scope of this benchmark: single x86_64 host, Landlock ABI v7; the coverage and race results are
-host-independent properties of the mechanisms, the seccomp win-rate is scheduler-dependent as in
+Scope of this benchmark: single x86_64 host, Landlock ABI v7; the coverage and race outcomes follow from
+the documented mechanism semantics and were demonstrated on this one host, the seccomp win-rate is scheduler-dependent as in
 EXP-11 (five runs to date, band 18.9%-23.1%).

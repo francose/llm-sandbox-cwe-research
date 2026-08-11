@@ -46,5 +46,5 @@ freezing quiesces it first, and the resource caps bound it.
 
 Single host, cgroup v2 unified hierarchy, run as root. The survivor *rates* are workload- and
 scheduler-dependent; the qualitative properties -- cgroup.kill is race-free where PID enumeration is not,
-freeze quiesces, caps bound -- are host-independent properties of the mechanisms. Latency is not reported
+freeze quiesces, caps bound -- follow from the documented mechanism semantics and were demonstrated on this one host. Latency is not reported
 (see above).

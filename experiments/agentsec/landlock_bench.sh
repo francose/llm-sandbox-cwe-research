@@ -76,7 +76,7 @@ echo "-- external process_vm_writev flip vs the seccomp CONTINUE gate (wins the 
 rm -f "$EVIL" "$BENIGN"; "$SG" --persist "$MX" "$BENIGN" "$EVIL" "$N" 2>&1 | grep MEMEXTERN | sed 's/^/   /'
 echo "-- control: direct evil open, no race (gate must deny every attempt, win=0):"
 rm -f "$EVIL"; "$SG" --persist "$MX" "$EVIL" "$EVIL" 500 2>&1 | grep MEMEXTERN | sed 's/^/   /'
-echo "-- same external flip vs Landlock (immune: flip only changes which DENIED path is tried, win=0):"
+echo "-- same external flip vs Landlock (resisted: flip only changes which DENIED path is tried, win=0):"
 rm -f "$EVIL" "$BENIGN"; "$LL" "$ALLOWED" "$MX" "$BENIGN" "$EVIL" "$N" 2>&1 | grep MEMEXTERN | sed 's/^/   /'
 rm -f "$EVIL" "$BENIGN"
 
