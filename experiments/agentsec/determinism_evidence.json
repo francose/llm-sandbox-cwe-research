@@ -1,0 +1,13 @@
+{
+ "qwen2.5-coder:7b": {
+  "core_hashes": [
+   "f2704bd1514eb22c",
+   "f2704bd1514eb22c"
+  ],
+  "env_fingerprint": "41f175f7ccb0",
+  "machine": "x86_64",
+  "ollama_version": "0.32.6",
+  "runs": 2,
+  "verified": true
+ }
+}
