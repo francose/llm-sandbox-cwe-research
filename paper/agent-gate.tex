@@ -773,7 +773,7 @@ actor.
 
 \part{The composed sandbox under attack}
 
-\section{Five invariants, and where each is enforced}\label{sec:composed}
+\section{Six invariants, and where each is enforced}\label{sec:composed}
 
 Parts~I--III measured controls in isolation. A deployment runs them together, so the question a defender
 actually faces is whether an assembled sandbox holds under attack, and against what. We state six
@@ -1177,7 +1177,8 @@ read, a latency benchmark for the kill switch on a native kernel, and a repeat a
 a second architecture.
 
 \paragraph{Reproducibility.} All code, data, and per-experiment results are committed in the
-accompanying artifact repository, archived at \texttt{[ARCHIVAL URL / DOI]}. From a clean
+accompanying artifact repository, which will be deposited under a DOI on acceptance and is
+available to reviewers on request in the interim. From a clean
 checkout, \texttt{experiments/agentsec/reproduce.sh} rebuilds the gate and the probes from source
 and re-checks the Part~I headline results in one command (9 checks, all passing, no privilege
 required); we verified this from a fresh clone on a host with no build state.
