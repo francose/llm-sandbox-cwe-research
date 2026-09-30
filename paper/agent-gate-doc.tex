@@ -48,10 +48,10 @@
 an empirical evaluation of seccomp argument-inspection gates
 for containing LLM agents}
 \author{Sadik Erisen\\[2pt]
-\normalsize Security Engineer, Comcast
+\normalsize Security Engineer
 \and
 Todd Outten\\[2pt]
-\normalsize Distinguished Engineer, Comcast}
+\normalsize Distinguished Engineer}
 \date{July 2026}
 
 \begin{document}
@@ -59,13 +59,13 @@ Todd Outten\\[2pt]
 \begin{center}
 {\LARGE\textbf{Determinism is not soundness}}\\[4pt]
 {\large an empirical evaluation of seccomp argument-inspection gates for containing LLM agents}\\[10pt]
-{\normalsize Sadik Erisen, Security Engineer, Comcast \qquad Todd Outten, Distinguished Engineer, Comcast}\\[4pt]
+{\normalsize Sadik Erisen, Security Engineer \qquad Todd Outten, Distinguished Engineer}\\[4pt]
 {\normalsize July 2026}
 \end{center}
 
 \vspace{6pt}
 \noindent\footnotesize\emph{Every number in this paper traces to a committed artifact in
-\texttt{github.com/comcast-tsf/tsf-llm-security-research}. The Part~I headline results re-check via
+the accompanying artifact repository. The Part~I headline results re-check via
 \texttt{experiments/agentsec/reproduce.sh}; the Part~II--IV benchmarks reproduce via their
 per-experiment scripts in the same directory.}
 \normalsize
@@ -987,7 +987,7 @@ read, a latency benchmark for the kill switch on a native kernel, and a repeat a
 a second architecture.
 
 \paragraph{Reproducibility.} All code, data, and per-experiment results are committed in the
-accompanying artifact repository, \texttt{github.com/comcast-tsf/tsf-llm-security-research}.
+accompanying artifact repository.
 \texttt{experiments/agentsec/reproduce.sh} rebuilds
 the gate and the probes from source and re-checks the Part~I headline results (9 checks); the Part~II and
 III benchmarks reproduce through \texttt{landlock\_bench.sh}, whose third benchmark is the scope probe
